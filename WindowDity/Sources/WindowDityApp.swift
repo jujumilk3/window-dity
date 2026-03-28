@@ -1,12 +1,11 @@
-import SwiftUI
+import AppKit
 
 @main
-struct WindowDityApp: App {
-    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-
-    var body: some Scene {
-        Settings {
-            PreferencesView()
-        }
+struct WindowDityApp {
+    static func main() {
+        let app = NSApplication.shared
+        let delegate = AppDelegate()
+        app.delegate = delegate
+        app.run()
     }
 }

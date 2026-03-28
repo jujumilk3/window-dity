@@ -2,6 +2,7 @@
 working-records/
 output/
 .claude/scheduled_tasks.lock
+references/
 
 ## Swift / Xcode
 .build/

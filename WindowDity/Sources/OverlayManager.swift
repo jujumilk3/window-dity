@@ -1,68 +1,98 @@
 import AppKit
 
-class OverlayManager {
-    private var overlayWindows: [(window: NSWindow, zone: DropZone, view: DropZoneView)] = []
+final class OverlayManager {
+    private let store: LayoutStore
+    private var windows: [NSWindow] = []
+    private var overlayViews: [OverlayView] = []
 
-    func showOverlays() {
-        hideOverlays()
+    private let overlayWidth: CGFloat = 120
+    private let overlayHeight: CGFloat = 100
+    private let spacing: CGFloat = 8
 
-        guard let screen = NSScreen.main else { return }
-        let zones = DropZone.allZones(for: screen)
+    init(store: LayoutStore) {
+        self.store = store
+    }
 
-        for zone in zones {
+    func show() {
+        hide()
+
+        let layouts = store.layouts
+        guard !layouts.isEmpty,
+              let screen = NSScreen.main else { return }
+
+        let totalWidth = CGFloat(layouts.count) * overlayWidth
+            + CGFloat(layouts.count - 1) * spacing
+        let stripX = screen.frame.midX - totalWidth / 2
+        let stripY = screen.frame.origin.y + 60
+
+        for (i, layout) in layouts.enumerated() {
+            let view = OverlayView(layout: layout)
             let window = NSWindow(
-                contentRect: zone.screenFrame,
+                contentRect: NSRect(
+                    x: stripX + CGFloat(i) * (overlayWidth + spacing),
+                    y: stripY,
+                    width: overlayWidth,
+                    height: overlayHeight
+                ),
                 styleMask: .borderless,
                 backing: .buffered,
                 defer: false
             )
-            window.level = .screenSaver
+            window.level = .floating
             window.isOpaque = false
             window.backgroundColor = .clear
-            window.ignoresMouseEvents = true
-            window.collectionBehavior = [.canJoinAllSpaces, .stationary]
             window.hasShadow = false
+            window.ignoresMouseEvents = true
+            window.contentView = view
             window.alphaValue = 0
 
-            let zoneView = DropZoneView(zone: zone)
-            zoneView.frame = NSRect(origin: .zero, size: zone.screenFrame.size)
-            zoneView.autoresizingMask = [.width, .height]
-            window.contentView = zoneView
-
             window.orderFront(nil)
+            overlayViews.append(view)
+            windows.append(window)
+        }
 
-            NSAnimationContext.runAnimationGroup { ctx in
-                ctx.duration = 0.2
-                window.animator().alphaValue = 1
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = 0.2
+            for w in windows {
+                w.animator().alphaValue = 1
             }
-
-            overlayWindows.append((window: window, zone: zone, view: zoneView))
         }
     }
 
-    func highlightZone(at point: NSPoint) {
-        for entry in overlayWindows {
-            entry.view.isHighlighted = entry.zone.screenFrame.contains(point)
-        }
-    }
+    func hide() {
+        let toClose = windows
+        let views = overlayViews
+        windows = []
+        overlayViews = []
 
-    func hideOverlays() {
-        let windows = overlayWindows
-        overlayWindows.removeAll()
+        guard !toClose.isEmpty else { return }
 
         NSAnimationContext.runAnimationGroup({ ctx in
             ctx.duration = 0.15
-            for entry in windows {
-                entry.window.animator().alphaValue = 0
+            for w in toClose {
+                w.animator().alphaValue = 0
             }
         }, completionHandler: {
-            for entry in windows {
-                entry.window.orderOut(nil)
+            for w in toClose {
+                w.orderOut(nil)
             }
         })
+        _ = views // silence unused warning
     }
 
-    func zoneAtPoint(_ point: NSPoint) -> DropZone? {
-        overlayWindows.first(where: { $0.zone.screenFrame.contains(point) })?.zone
+    func updateHover(at point: NSPoint) {
+        for (i, view) in overlayViews.enumerated() {
+            let frame = windows[i].frame
+            view.isHovered = frame.contains(point)
+        }
+    }
+
+    func layoutUnderMouse(at point: NSPoint) -> Layout? {
+        for (i, window) in windows.enumerated() {
+            if window.frame.contains(point) {
+                return overlayViews[i].layout
+            }
+        }
+        return nil
     }
 }

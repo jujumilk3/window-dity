@@ -82,43 +82,57 @@ You are a planning agent. Create a task plan for the objective below.
 
 ## Objective
 Build "WindowDity" — a native macOS window management app (Swift + AppKit).
-The app runs as a menu bar agent (LSUIElement). It detects when the user is
-dragging a window (via CGEvent tap or global NSEvent monitoring for mouse drag
-events). While the window is being dragged, translucent overlay windows appear
-on screen showing drop zones for layout presets (left half, right half, top half,
-bottom half, quarters, full screen). When the user releases the window onto a
-drop zone, the app snaps the window to that zone's frame using the Accessibility
-API (AXUIElement). The overlays disappear when the drag ends.
+The app runs as a menu bar agent (LSUIElement=true). Core UX:
 
-## Core UX Flow
-1. User grabs any window's title bar and starts dragging
-2. App detects the drag via global event monitor (mouseDown + mouseDragged)
-3. Semi-transparent overlay windows appear on screen showing drop zones
-4. Each zone highlights when the cursor enters it
-5. User drops the window on a zone → window snaps to that layout
-6. Overlays fade out
+1. User defines layouts in Preferences (e.g. Left Half, Right Half, Full Screen, custom grid-based layouts)
+2. Layouts are persisted as a list of Layout objects (JSON in UserDefaults)
+3. When user drags any window, the defined layouts appear as drop zone overlays on screen
+4. Each overlay shows a thumbnail preview of the layout + its name
+5. When user drops the window onto an overlay, the window snaps to that layout's frame
+6. Overlays fade out after drop or when drag is cancelled
+
+## Reference UI (see references/ directory for screenshots)
+- Preferences window has tabs: Layouts, Options, Positioning, Quick Layout
+- Layouts tab shows a scrollable list of defined layouts with grid preview thumbnails
+- Each layout shows: grid preview image, name, grid dimensions, "All Screens" label
+- Layouts can be reordered by dragging, edited by double-click, added/removed
+- Default layouts: Left Half, Right Half, Centre, Full Screen
+
+## Architecture
+- Layout model: Codable struct with name, grid dimensions (rows x cols), selected cells (which cells in the grid are filled), and computed screen frame
+- LayoutStore: ObservableObject that manages the layout list, persists to UserDefaults as JSON
+- DragDetector: global NSEvent monitor — detects window title bar drags via mouseDown + mouseDragged (with threshold)
+- OverlayManager: creates borderless NSWindows for each layout in LayoutStore, positioned as a horizontal strip near bottom of screen
+- WindowManager: AXUIElement API to move+resize the dragged window to the selected layout frame
+- AppDelegate: orchestrates DragDetector → OverlayManager → WindowManager
+- PreferencesView: SwiftUI with Layouts tab (add/edit/remove/reorder layouts), general settings
 
 ## Deliverables
-All files are created in the project root. IMPORTANT: This is a complete rewrite —
-delete all existing files in `WindowDity/Sources/` before creating new ones.
+All files in project root. Delete all existing files in `WindowDity/Sources/` first.
 
 - `WindowDity/Package.swift` — Swift Package (macOS 13+, executable target)
-- `WindowDity/Sources/AppDelegate.swift` — app lifecycle, starts drag detector
-- `WindowDity/Sources/DragDetector.swift` — global NSEvent monitor to detect window drags (mouseDown on title bar, mouseDragged, mouseUp)
-- `WindowDity/Sources/OverlayManager.swift` — creates/shows/hides borderless overlay NSWindows for each drop zone
-- `WindowDity/Sources/DropZone.swift` — model defining each zone's screen frame, visual appearance, and associated LayoutPreset
-- `WindowDity/Sources/DropZoneView.swift` — NSView/SwiftUI view for a single drop zone overlay (translucent, highlights on hover)
-- `WindowDity/Sources/LayoutPreset.swift` — enum of layout presets (leftHalf, rightHalf, topHalf, bottomHalf, quarters, fullScreen) with frame computation
-- `WindowDity/Sources/WindowManager.swift` — AXUIElement API: get focused/dragged window, move+resize to target frame
-- `WindowDity/Sources/PreferencesView.swift` — settings (enable/disable zones, custom zones)
+- `WindowDity/Sources/Layout.swift` — Layout model (Codable struct: name, rows, cols, selectedCells, frame computation)
+- `WindowDity/Sources/LayoutStore.swift` — ObservableObject managing layout list, JSON persistence via UserDefaults
+- `WindowDity/Sources/DragDetector.swift` — global NSEvent monitor for window drags
+- `WindowDity/Sources/OverlayManager.swift` — creates/shows/hides overlay windows showing layout previews
+- `WindowDity/Sources/OverlayView.swift` — NSView for a single overlay (grid preview thumbnail + label, highlight on hover)
+- `WindowDity/Sources/WindowManager.swift` — AXUIElement API: move+resize dragged window
+- `WindowDity/Sources/AppDelegate.swift` — orchestrator: drag detect → show overlays → snap window
+- `WindowDity/Sources/PreferencesView.swift` — SwiftUI Preferences with Layouts tab (list, add, edit, remove, reorder)
+- `WindowDity/Sources/LayoutEditorView.swift` — SwiftUI view to edit a single layout (name, grid size, click cells to select)
 - `WindowDity/Sources/WindowDityApp.swift` — @main entry point
-- `WindowDity/Info.plist` — with NSAccessibilityUsageDescription, LSUIElement=true
+- `WindowDity/Info.plist` — NSAccessibilityUsageDescription, LSUIElement=true
 - `WindowDity/WindowDity.entitlements` — sandbox disabled for AX API
+
+## Known bugs to fix from previous implementation
+1. Window resizing not working — getFocusedWindow() may not return the window being dragged. Instead, capture the frontmost window PID+window ref BEFORE drag starts (on mouseDown), then use that reference for moveAndResize on drop.
+2. Preferences window not opening — use NSApp.sendAction(Selector(("showSettingsWindow:"))) on macOS 13+, fall back to "showPreferencesWindow:" on older. Also ensure NSApp.activate() is called first.
+3. Overlays should appear as a horizontal strip of layout thumbnails near the bottom center of the screen, not as full-zone screen overlays.
 
 ## Context
 1. Read `output/progress.txt` first; do not duplicate work already marked as done.
 2. Keep tasks minimal and directly tied to the objective.
-3. Existing files in WindowDity/ are from a previous incorrect implementation and must be replaced.
+3. Existing files are from a previous incorrect implementation and must be replaced.
 
 ## Job
 1. Read what has been completed and what remains from `output/progress.txt`.
@@ -153,22 +167,21 @@ gen_replan_prompt() {
 You are a planning agent running cycle $cycle_num. The previous cycle had issues.
 
 ## Objective (unchanged)
-Build "WindowDity" — a native macOS window management app (Swift + AppKit).
-The app detects when the user drags a window, shows translucent overlay drop zones
-on screen (left half, right half, top/bottom half, quarters, full screen), and snaps
-the window to the chosen zone's frame via Accessibility API when dropped.
+Read \`SPEC.md\` for the full spec. Build "WindowDity" — a Window Tidy-style macOS
+window management app. User drags a window → layout overlays appear as thumbnail
+strip → drop on a layout → window snaps. Layouts are user-defined in Preferences.
 
 ## Deliverables (unchanged)
-All files are created in the project root:
 - \`WindowDity/Package.swift\` — Swift Package (macOS 13+)
-- \`WindowDity/Sources/AppDelegate.swift\` — app lifecycle, starts drag detector
-- \`WindowDity/Sources/DragDetector.swift\` — global NSEvent monitor for window drags
-- \`WindowDity/Sources/OverlayManager.swift\` — creates/shows/hides overlay windows
-- \`WindowDity/Sources/DropZone.swift\` — drop zone model (frame, preset)
-- \`WindowDity/Sources/DropZoneView.swift\` — overlay view (translucent, hover highlight)
-- \`WindowDity/Sources/LayoutPreset.swift\` — layout preset enum with frame computation
-- \`WindowDity/Sources/WindowManager.swift\` — AXUIElement window control
-- \`WindowDity/Sources/PreferencesView.swift\` — settings
+- \`WindowDity/Sources/Layout.swift\` — Layout model (Codable)
+- \`WindowDity/Sources/LayoutStore.swift\` — ObservableObject, JSON persistence
+- \`WindowDity/Sources/DragDetector.swift\` — global NSEvent monitor
+- \`WindowDity/Sources/OverlayManager.swift\` — overlay windows (thumbnail strip)
+- \`WindowDity/Sources/OverlayView.swift\` — single overlay view (grid preview + label)
+- \`WindowDity/Sources/WindowManager.swift\` — AXUIElement move+resize
+- \`WindowDity/Sources/AppDelegate.swift\` — orchestrator
+- \`WindowDity/Sources/PreferencesView.swift\` — Layouts tab (list, add, edit, remove)
+- \`WindowDity/Sources/LayoutEditorView.swift\` — edit single layout (name, grid, cells)
 - \`WindowDity/Sources/WindowDityApp.swift\` — @main entry point
 - \`WindowDity/Info.plist\` — NSAccessibilityUsageDescription, LSUIElement=true
 - \`WindowDity/WindowDity.entitlements\` — sandbox disabled
@@ -199,13 +212,14 @@ gen_build_prompt() {
 You are a build agent. Execute one task from the plan.
 
 ## Objective context
-Build "WindowDity" — a macOS window management app that detects window drags,
-shows overlay drop zones on screen, and snaps windows to the chosen zone via
-Accessibility API (AXUIElement).
+Read `SPEC.md` for the full spec. Build "WindowDity" — a Window Tidy-style macOS
+window management app. Drag a window → layout thumbnail overlays appear → drop to snap.
 
 ## Context — read FIRST
-1. `output/plan.json` — task list
-2. `output/progress.txt` — cumulative findings
+1. `SPEC.md` — full product spec
+2. `output/plan.json` — task list
+3. `output/progress.txt` — cumulative findings
+4. `references/` — screenshot references of the target UI
 
 ## Workflow
 1. Read `output/plan.json` and find the first task where `passes` is `false`.
@@ -219,10 +233,11 @@ Accessibility API (AXUIElement).
 - ONE task per iteration.
 - Actually create/modify the target files — do not just toggle passes.
 - All app source files go under `WindowDity/` in the project root.
-- Use AppKit for overlays (borderless NSWindow, level .floating or .screenSaver).
-- Use global NSEvent.addGlobalMonitorForEvents for drag detection.
-- Use AXUIElement API for window move/resize.
-- Overlays must be translucent and highlight on cursor hover.
+- Overlays: horizontal strip of layout thumbnails near bottom-center of screen (borderless NSWindow).
+- Drag detection: global NSEvent monitor. Capture window ref on mouseDown BEFORE drag.
+- Window control: AXUIElement API for move+resize.
+- Preferences must open correctly (NSApp.activate + sendAction showSettingsWindow:).
+- Layout model: Codable struct persisted as JSON in UserDefaults.
 
 ## Completion
 If ALL tasks have `passes: true`, output: <promise>CYCLE_DONE</promise>
@@ -385,12 +400,14 @@ PY
     # Core source files must exist
     local required_files=(
         "WindowDity/Sources/AppDelegate.swift"
+        "WindowDity/Sources/Layout.swift"
+        "WindowDity/Sources/LayoutStore.swift"
         "WindowDity/Sources/DragDetector.swift"
         "WindowDity/Sources/OverlayManager.swift"
-        "WindowDity/Sources/DropZone.swift"
-        "WindowDity/Sources/DropZoneView.swift"
-        "WindowDity/Sources/LayoutPreset.swift"
+        "WindowDity/Sources/OverlayView.swift"
         "WindowDity/Sources/WindowManager.swift"
+        "WindowDity/Sources/PreferencesView.swift"
+        "WindowDity/Sources/LayoutEditorView.swift"
     )
     for f in "${required_files[@]}"; do
         [[ ! -f "$f" ]] && errors+=("Missing required file: $f")
@@ -410,12 +427,16 @@ PY
     fi
 
     # Key classes/structs must exist in source
-    grep -rq "class WindowManager\|struct WindowManager" WindowDity/Sources/ 2>/dev/null || \
-        errors+=("WindowManager class/struct not found in sources.")
+    grep -rq "class WindowManager\|struct WindowManager\|enum WindowManager" WindowDity/Sources/ 2>/dev/null || \
+        errors+=("WindowManager class/struct/enum not found in sources.")
     grep -rq "class DragDetector\|struct DragDetector" WindowDity/Sources/ 2>/dev/null || \
         errors+=("DragDetector not found in sources.")
     grep -rq "class OverlayManager\|struct OverlayManager" WindowDity/Sources/ 2>/dev/null || \
         errors+=("OverlayManager not found in sources.")
+    grep -rq "class LayoutStore\|struct LayoutStore" WindowDity/Sources/ 2>/dev/null || \
+        errors+=("LayoutStore not found in sources.")
+    grep -rq "struct Layout" WindowDity/Sources/ 2>/dev/null || \
+        errors+=("Layout model not found in sources.")
     grep -rq "AXUIElement" WindowDity/Sources/ 2>/dev/null || \
         errors+=("Accessibility API (AXUIElement) usage not found in sources.")
     grep -rq "addGlobalMonitorForEvents\|CGEvent" WindowDity/Sources/ 2>/dev/null || \
