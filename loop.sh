@@ -78,34 +78,50 @@ RECORD_FILE=""
 
 gen_plan_prompt() {
     cat <<'PROMPT_EOF'
-You are a planning agent. Read the project context and create a task plan.
+You are a planning agent. Create a task plan for the objective below.
+
+## Objective
+Build "WindowDity" — a native macOS window management app (Swift + AppKit/SwiftUI).
+The app lives in the menu bar. Clicking the menu bar icon opens a Quick Layout popup
+where the user drags over a grid to select a window position/size, then the focused
+window snaps to that layout. The app uses the macOS Accessibility API to control
+windows belonging to other applications.
+
+## Deliverables
+All files are created in the project root:
+- `WindowDity/` — Xcode project directory with a working .xcodeproj or Swift Package
+- `WindowDity/Sources/AppDelegate.swift` — app lifecycle, menu bar status item
+- `WindowDity/Sources/StatusBarController.swift` — menu bar icon + popover management
+- `WindowDity/Sources/QuickLayoutView.swift` — SwiftUI grid popup for layout selection
+- `WindowDity/Sources/WindowManager.swift` — Accessibility API window control (move/resize)
+- `WindowDity/Sources/LayoutPreset.swift` — preset definitions (left half, right half, top half, bottom half, quarters, full screen, custom)
+- `WindowDity/Sources/PreferencesView.swift` — settings for custom sizes
+- `WindowDity/Info.plist` — with NSAccessibilityUsageDescription
+- `WindowDity/WindowDity.entitlements` — with accessibility entitlement
 
 ## Context
 1. Read `output/progress.txt` first; do not duplicate work already marked as done.
-2. Keep tasks minimal and directly tied to the current cycle objective.
+2. Keep tasks minimal and directly tied to the objective.
 
 ## Job
 1. Read what has been completed and what remains from `output/progress.txt`.
-2. Generate `output/plan.json` with exact JSON only (no markdown fences, no preface, no explanation).
-3. Tasks must be ordered by execution priority so build can finish them in array order.
-4. Ensure every task includes all required fields and `passes` is initially `false` for unfinished work.
+2. Generate `output/plan.json` with exact JSON only.
+3. Tasks must be ordered by execution priority.
 
 Schema:
    ```json
    {
      "tasks": [
        { "id": "T-001", "title": "...", "description": "...",
-         "targetFile": "loop.sh", "passes": false, "notes": "..." }
+         "targetFile": "...", "passes": false, "notes": "..." }
      ]
    }
    ```
 
-5. Overwrite `output/plan.json` each run with the complete task list.
-6. Include one clear `<promise>PLAN_COMPLETE</promise>` signal only when schema is fully written.
-
 ## Rules
-- Use stable, unique IDs.
-- Use explicit ordering in the task array for build execution.
+- targetFile must be a real file path the task creates or modifies.
+- Use stable, unique IDs (T-001, T-002, ...).
+
 ## Completion
 When done, output: <promise>PLAN_COMPLETE</promise>
 PROMPT_EOF
@@ -118,6 +134,25 @@ gen_replan_prompt() {
     cat <<PROMPT_EOF
 You are a planning agent running cycle $cycle_num. The previous cycle had issues.
 
+## Objective (unchanged)
+Build "WindowDity" — a native macOS window management app (Swift + AppKit/SwiftUI).
+The app lives in the menu bar. Clicking the menu bar icon opens a Quick Layout popup
+where the user drags over a grid to select a window position/size, then the focused
+window snaps to that layout. The app uses the macOS Accessibility API to control
+windows belonging to other applications.
+
+## Deliverables (unchanged)
+All files are created in the project root:
+- \`WindowDity/\` — Xcode project directory with a working .xcodeproj or Swift Package
+- \`WindowDity/Sources/AppDelegate.swift\` — app lifecycle, menu bar status item
+- \`WindowDity/Sources/StatusBarController.swift\` — menu bar icon + popover management
+- \`WindowDity/Sources/QuickLayoutView.swift\` — SwiftUI grid popup for layout selection
+- \`WindowDity/Sources/WindowManager.swift\` — Accessibility API window control (move/resize)
+- \`WindowDity/Sources/LayoutPreset.swift\` — preset definitions
+- \`WindowDity/Sources/PreferencesView.swift\` — settings for custom sizes
+- \`WindowDity/Info.plist\` — with NSAccessibilityUsageDescription
+- \`WindowDity/WindowDity.entitlements\` — with accessibility entitlement
+
 ## Previous errors
 \`\`\`
 $build_errors
@@ -125,17 +160,14 @@ $build_errors
 
 ## Job
 1. Read \`output/progress.txt\` for context on what was already done
-2. Generate a NEW \`output/plan.json\` for cycle $cycle_num with schema:
-   \`\`\`json
-   {
-     "tasks": [
-       { "id": "T-001", "title": "...", "description": "...",
-         "targetFile": "output/...", "passes": false, "notes": "" }
-     ]
-   }
-   \`\`\`
+2. Generate a NEW \`output/plan.json\` for cycle $cycle_num with the standard schema
 3. Fix the issues from the previous cycle
 4. Append cycle notes to \`output/progress.txt\`
+
+## Rules
+- targetFile must be a real file path the task creates or modifies.
+- Use stable, unique IDs (T-001, T-002, ...).
+- Tasks already completed (visible in progress.txt) should have passes: true.
 
 ## Completion
 When done, output: <promise>PLAN_COMPLETE</promise>
@@ -146,31 +178,30 @@ gen_build_prompt() {
     cat <<'PROMPT_EOF'
 You are a build agent. Execute one task from the plan.
 
+## Objective context
+Build "WindowDity" — a native macOS window management app with menu bar Quick Layout popup, using Swift + AppKit/SwiftUI and Accessibility API.
+
 ## Context — read FIRST
 1. `output/plan.json` — task list
 2. `output/progress.txt` — cumulative findings
 
 ## Workflow
-1. Read `output/plan.json` and find the first task where `passes` is `false` (by array order).
-2. Execute exactly that one task and do not modify any other task state.
-3. Update only the matching task in `output/plan.json` to `passes: true`.
-4. Append concise progress to `output/progress.txt` naming:
-   - completed task id
-   - what changed
-   - any notable decisions or risks
-5. If ALL tasks in `tasks` now have `passes: true`, output `<promise>CYCLE_DONE</promise>`.
-6. If tasks remain incomplete, stop after this one task.
+1. Read `output/plan.json` and find the first task where `passes` is `false`.
+2. Execute exactly that one task — create or modify the targetFile.
+3. Update only that task in `output/plan.json` to `passes: true`.
+4. Append concise progress to `output/progress.txt`.
+5. If ALL tasks now have `passes: true`, output `<promise>CYCLE_DONE</promise>`.
+6. Otherwise stop after this one task.
 
 ## Rules
-- ONE task per iteration
-- Update the plan JSON after completing each task
-- Do not reorder tasks.
-- Do not add extra non-task tasks.
-- If there are no incomplete tasks, output `<promise>CYCLE_DONE</promise>` immediately.
+- ONE task per iteration.
+- Actually create/modify the target files — do not just toggle passes.
+- All app source files go under `WindowDity/` in the project root.
+- Use SwiftUI for UI components, AppKit for system integration (NSStatusBar, NSPopover).
+- Use AXUIElement API for window management via Accessibility framework.
 
 ## Completion
 If ALL tasks have `passes: true`, output: <promise>CYCLE_DONE</promise>
-Otherwise, complete your one task and exit.
 PROMPT_EOF
 }
 
@@ -178,7 +209,29 @@ PROMPT_EOF
 # POST PHASES — define gen_<name>_prompt() functions and add names to POST_PHASES
 # ═══════════════════════════════════════════════════════════════════════════════
 
-POST_PHASES=()
+POST_PHASES=("e2e")
+
+gen_e2e_prompt() {
+    cat <<'PROMPT_EOF'
+You are an E2E testing agent. The WindowDity macOS app has been built.
+
+## Job
+1. Locate the built .app bundle under the WindowDity build directory.
+2. Launch the app using `open` command and verify it starts without crashing.
+3. Check that the menu bar status item appears (use AppleScript or accessibility checks).
+4. Kill the app process after testing.
+5. Report results to `output/progress.txt`.
+
+## Rules
+- Max 3 attempts to verify the app runs.
+- If the app crashes on launch, capture the crash log and report it.
+- Do not modify source code — only test.
+
+## Completion
+If all tests pass, output: <promise>E2E_DONE</promise>
+If tests fail, describe what failed and output: <promise>E2E_PROGRESS</promise>
+PROMPT_EOF
+}
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # VERIFY — exit 0 = pass, exit 1 = fail
@@ -301,6 +354,56 @@ PY
 
     if [[ ! -f "$PROGRESS_FILE" ]] || [[ ! -s "$PROGRESS_FILE" ]]; then
         errors+=("progress.txt missing or empty.")
+    fi
+
+    # === DELIVERABLE CHECKS ===
+
+    # Core source files must exist
+    local required_files=(
+        "WindowDity/Sources/AppDelegate.swift"
+        "WindowDity/Sources/StatusBarController.swift"
+        "WindowDity/Sources/QuickLayoutView.swift"
+        "WindowDity/Sources/WindowManager.swift"
+        "WindowDity/Sources/LayoutPreset.swift"
+    )
+    for f in "${required_files[@]}"; do
+        [[ ! -f "$f" ]] && errors+=("Missing required file: $f")
+    done
+
+    # Project must have either .xcodeproj or Package.swift
+    if ! ls WindowDity/*.xcodeproj 1>/dev/null 2>&1 && [[ ! -f "WindowDity/Package.swift" ]]; then
+        errors+=("No Xcode project or Package.swift found in WindowDity/.")
+    fi
+
+    # Info.plist with accessibility usage description
+    if [[ -f "WindowDity/Info.plist" ]]; then
+        grep -q "NSAccessibilityUsageDescription" "WindowDity/Info.plist" 2>/dev/null || \
+            errors+=("Info.plist missing NSAccessibilityUsageDescription.")
+    else
+        errors+=("WindowDity/Info.plist not found.")
+    fi
+
+    # Key classes/structs must exist in source
+    grep -rq "class WindowManager" WindowDity/Sources/ 2>/dev/null || \
+        grep -rq "struct WindowManager" WindowDity/Sources/ 2>/dev/null || \
+        errors+=("WindowManager class/struct not found in sources.")
+    grep -rq "StatusBarController\|NSStatusBar\|NSStatusItem" WindowDity/Sources/ 2>/dev/null || \
+        errors+=("StatusBar integration not found in sources.")
+    grep -rq "AXUIElement\|CGWindowListCopyWindowInfo" WindowDity/Sources/ 2>/dev/null || \
+        errors+=("Accessibility API usage not found in sources.")
+
+    # Swift build check
+    if ls WindowDity/*.xcodeproj 1>/dev/null 2>&1; then
+        local proj_name
+        proj_name=$(basename WindowDity/*.xcodeproj .xcodeproj)
+        local build_output
+        build_output=$(xcodebuild -project "WindowDity/${proj_name}.xcodeproj" \
+            -scheme "$proj_name" -configuration Debug \
+            build 2>&1) || errors+=("xcodebuild failed: $(echo "$build_output" | tail -5)")
+    elif [[ -f "WindowDity/Package.swift" ]]; then
+        local build_output
+        build_output=$(cd WindowDity && swift build 2>&1) || \
+            errors+=("swift build failed: $(echo "$build_output" | tail -5)")
     fi
 
     if [[ ${#errors[@]} -gt 0 ]]; then
