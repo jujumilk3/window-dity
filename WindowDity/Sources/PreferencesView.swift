@@ -253,7 +253,7 @@ struct PreferencesView: View {
                     Slider(value: $overlayWidthPercent, in: 10...100, step: 5)
                     Text("\(Int(overlayWidthPercent))%")
                         .monospacedDigit()
-                        .frame(width: 36, alignment: .trailing)
+                        .frame(width: 44, alignment: .trailing)
                 }
                 .frame(maxWidth: 312)
             }

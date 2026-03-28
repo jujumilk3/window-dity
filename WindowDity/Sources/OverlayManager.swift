@@ -106,7 +106,7 @@ final class OverlayManager {
             ? count * overlayHeight + (count - 1) * spacing
             : count * overlayWidth + (count - 1) * spacing
 
-        let scale: CGFloat = naturalPrimary > maxWidth ? maxWidth / naturalPrimary : 1.0
+        let scale: CGFloat = maxWidth / naturalPrimary
         let itemW = overlayWidth * scale
         let itemH = overlayHeight * scale
         let gap = spacing * scale
