@@ -1,6 +1,6 @@
 # WindowDity — Loop Iteration History
 
-This project is an example app built using [looprinter](https://github.com/jujumilk3/looprinter) — a loop template repository for building iterative agent harnesses. The `loop.sh` harness was copied from looprinter and customized through a series of conversational interviews to produce a working macOS window management app.
+This project is an example app built using [looprinter](https://github.com/tapesymbolstate/looprinter) — a loop template repository for building iterative agent harnesses. The `loop.sh` harness was copied from looprinter and customized through a series of conversational interviews to produce a working macOS window management app.
 
 The document below records how the loop was iteratively refined through conversation — the "outer loop" of human feedback driving prompt improvements, while the "inner loop" (agent iterations inside loop.sh) executed the refined instructions.
 
