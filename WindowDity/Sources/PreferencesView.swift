@@ -70,11 +70,15 @@ struct ScreenPositionPreview: View {
             .frame(width: previewWidth, height: previewHeight)
             .clipShape(RoundedRectangle(cornerRadius: 6))
 
-            // Vertical slider to control position
-            Slider(value: $positionY, in: 0...1)
+            // Vertical slider — rotated so top=0, bottom=1
+            Slider(value: Binding(
+                get: { 1.0 - positionY },
+                set: { positionY = 1.0 - $0 }
+            ), in: 0...1)
                 .rotationEffect(.degrees(-90))
                 .frame(width: previewHeight, height: 20)
                 .frame(width: 20, height: previewHeight)
+                .tint(.clear)
         }
     }
 
@@ -98,13 +102,13 @@ struct ScreenPositionPreview: View {
 
 struct PreferencesView: View {
     @ObservedObject var store: LayoutStore
+    var overlayManager: OverlayManager?
     @State private var selection: UUID?
     @State private var editingLayout: Layout?
     @State private var launchAtLogin = false
     @AppStorage("overlayOrientation") private var overlayOrientation: String = "horizontal"
     @AppStorage("overlayPositionY") private var overlayPositionY: Double = 0.5
-    @AppStorage("overlayMaxWidth") private var overlayMaxWidth: Int = 300
-    @AppStorage("overlayMargins") private var overlayMargins: Int = 700
+    @AppStorage("overlayWidthPercent") private var overlayWidthPercent: Double = 30
 
     var body: some View {
         VStack(spacing: 0) {
@@ -133,7 +137,7 @@ struct PreferencesView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
         }
-        .frame(minWidth: 440, maxWidth: 440, minHeight: 520, maxHeight: 700)
+        .frame(width: 440, height: 520)
         .sheet(item: $editingLayout) { layout in
             LayoutEditorView(layout: layout) { updated in
                 store.update(updated)
@@ -216,7 +220,7 @@ struct PreferencesView: View {
                 Text("Orientation")
                     .font(.headline)
 
-                Text("Layout Icons can be arranged accross or down the screen.")
+                Text("Layout Icons can be arranged across or down the screen.")
                     .font(.callout)
                     .foregroundColor(.secondary)
 
@@ -239,31 +243,29 @@ struct PreferencesView: View {
                 )
             }
 
-            // Dimensions section
+            // Strip size section
             VStack(alignment: .leading, spacing: 8) {
-                Text("Dimensions")
+                Text("Strip size")
                     .font(.headline)
 
-                HStack(spacing: 16) {
-                    HStack(spacing: 4) {
-                        Text("Maximum Width:")
-                        TextField("", value: $overlayMaxWidth, formatter: NumberFormatter())
-                            .frame(width: 60)
-                            .textFieldStyle(.roundedBorder)
-                    }
-
-                    HStack(spacing: 4) {
-                        Text("Margins:")
-                        TextField("", value: $overlayMargins, formatter: NumberFormatter())
-                            .frame(width: 60)
-                            .textFieldStyle(.roundedBorder)
-                    }
+                HStack {
+                    Text("Width")
+                    Slider(value: $overlayWidthPercent, in: 10...100, step: 5)
+                    Text("\(Int(overlayWidthPercent))%")
+                        .monospacedDigit()
+                        .frame(width: 36, alignment: .trailing)
                 }
+                .frame(maxWidth: 312)
             }
 
             Spacer()
         }
         .padding(16)
+        .onAppear { overlayManager?.show() }
+        .onDisappear { overlayManager?.hide() }
+        .onChange(of: overlayPositionY) { _ in overlayManager?.show() }
+        .onChange(of: overlayOrientation) { _ in overlayManager?.show() }
+        .onChange(of: overlayWidthPercent) { _ in overlayManager?.show() }
     }
 
     // MARK: - Actions

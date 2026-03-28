@@ -64,20 +64,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, DragDetectorDelegate {
     }
 
     @objc private func openPreferences() {
+        // Temporarily become a regular app so the window can receive focus
+        NSApp.setActivationPolicy(.regular)
+
         if let window = preferencesWindow {
             window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
             return
         }
 
-        let view = PreferencesView(store: layoutStore)
+        let view = PreferencesView(store: layoutStore, overlayManager: overlayManager)
         let hostingController = NSHostingController(rootView: view)
         let window = NSWindow(contentViewController: hostingController)
         window.title = "WindowDity Preferences"
         window.styleMask = [.titled, .closable, .miniaturizable]
+        window.isReleasedWhenClosed = false
         window.center()
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+
+        // When window closes, go back to accessory mode
+        NotificationCenter.default.addObserver(
+            forName: NSWindow.willCloseNotification,
+            object: window,
+            queue: .main
+        ) { [weak self] _ in
+            NSApp.setActivationPolicy(.accessory)
+            self?.preferencesWindow = nil
+        }
 
         preferencesWindow = window
     }
