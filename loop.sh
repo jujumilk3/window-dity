@@ -81,27 +81,44 @@ gen_plan_prompt() {
 You are a planning agent. Create a task plan for the objective below.
 
 ## Objective
-Build "WindowDity" — a native macOS window management app (Swift + AppKit/SwiftUI).
-The app lives in the menu bar. Clicking the menu bar icon opens a Quick Layout popup
-where the user drags over a grid to select a window position/size, then the focused
-window snaps to that layout. The app uses the macOS Accessibility API to control
-windows belonging to other applications.
+Build "WindowDity" — a native macOS window management app (Swift + AppKit).
+The app runs as a menu bar agent (LSUIElement). It detects when the user is
+dragging a window (via CGEvent tap or global NSEvent monitoring for mouse drag
+events). While the window is being dragged, translucent overlay windows appear
+on screen showing drop zones for layout presets (left half, right half, top half,
+bottom half, quarters, full screen). When the user releases the window onto a
+drop zone, the app snaps the window to that zone's frame using the Accessibility
+API (AXUIElement). The overlays disappear when the drag ends.
+
+## Core UX Flow
+1. User grabs any window's title bar and starts dragging
+2. App detects the drag via global event monitor (mouseDown + mouseDragged)
+3. Semi-transparent overlay windows appear on screen showing drop zones
+4. Each zone highlights when the cursor enters it
+5. User drops the window on a zone → window snaps to that layout
+6. Overlays fade out
 
 ## Deliverables
-All files are created in the project root:
-- `WindowDity/` — Xcode project directory with a working .xcodeproj or Swift Package
-- `WindowDity/Sources/AppDelegate.swift` — app lifecycle, menu bar status item
-- `WindowDity/Sources/StatusBarController.swift` — menu bar icon + popover management
-- `WindowDity/Sources/QuickLayoutView.swift` — SwiftUI grid popup for layout selection
-- `WindowDity/Sources/WindowManager.swift` — Accessibility API window control (move/resize)
-- `WindowDity/Sources/LayoutPreset.swift` — preset definitions (left half, right half, top half, bottom half, quarters, full screen, custom)
-- `WindowDity/Sources/PreferencesView.swift` — settings for custom sizes
-- `WindowDity/Info.plist` — with NSAccessibilityUsageDescription
-- `WindowDity/WindowDity.entitlements` — with accessibility entitlement
+All files are created in the project root. IMPORTANT: This is a complete rewrite —
+delete all existing files in `WindowDity/Sources/` before creating new ones.
+
+- `WindowDity/Package.swift` — Swift Package (macOS 13+, executable target)
+- `WindowDity/Sources/AppDelegate.swift` — app lifecycle, starts drag detector
+- `WindowDity/Sources/DragDetector.swift` — global NSEvent monitor to detect window drags (mouseDown on title bar, mouseDragged, mouseUp)
+- `WindowDity/Sources/OverlayManager.swift` — creates/shows/hides borderless overlay NSWindows for each drop zone
+- `WindowDity/Sources/DropZone.swift` — model defining each zone's screen frame, visual appearance, and associated LayoutPreset
+- `WindowDity/Sources/DropZoneView.swift` — NSView/SwiftUI view for a single drop zone overlay (translucent, highlights on hover)
+- `WindowDity/Sources/LayoutPreset.swift` — enum of layout presets (leftHalf, rightHalf, topHalf, bottomHalf, quarters, fullScreen) with frame computation
+- `WindowDity/Sources/WindowManager.swift` — AXUIElement API: get focused/dragged window, move+resize to target frame
+- `WindowDity/Sources/PreferencesView.swift` — settings (enable/disable zones, custom zones)
+- `WindowDity/Sources/WindowDityApp.swift` — @main entry point
+- `WindowDity/Info.plist` — with NSAccessibilityUsageDescription, LSUIElement=true
+- `WindowDity/WindowDity.entitlements` — sandbox disabled for AX API
 
 ## Context
 1. Read `output/progress.txt` first; do not duplicate work already marked as done.
 2. Keep tasks minimal and directly tied to the objective.
+3. Existing files in WindowDity/ are from a previous incorrect implementation and must be replaced.
 
 ## Job
 1. Read what has been completed and what remains from `output/progress.txt`.
@@ -121,6 +138,7 @@ Schema:
 ## Rules
 - targetFile must be a real file path the task creates or modifies.
 - Use stable, unique IDs (T-001, T-002, ...).
+- First task MUST clean up old source files before creating new ones.
 
 ## Completion
 When done, output: <promise>PLAN_COMPLETE</promise>
@@ -135,23 +153,25 @@ gen_replan_prompt() {
 You are a planning agent running cycle $cycle_num. The previous cycle had issues.
 
 ## Objective (unchanged)
-Build "WindowDity" — a native macOS window management app (Swift + AppKit/SwiftUI).
-The app lives in the menu bar. Clicking the menu bar icon opens a Quick Layout popup
-where the user drags over a grid to select a window position/size, then the focused
-window snaps to that layout. The app uses the macOS Accessibility API to control
-windows belonging to other applications.
+Build "WindowDity" — a native macOS window management app (Swift + AppKit).
+The app detects when the user drags a window, shows translucent overlay drop zones
+on screen (left half, right half, top/bottom half, quarters, full screen), and snaps
+the window to the chosen zone's frame via Accessibility API when dropped.
 
 ## Deliverables (unchanged)
 All files are created in the project root:
-- \`WindowDity/\` — Xcode project directory with a working .xcodeproj or Swift Package
-- \`WindowDity/Sources/AppDelegate.swift\` — app lifecycle, menu bar status item
-- \`WindowDity/Sources/StatusBarController.swift\` — menu bar icon + popover management
-- \`WindowDity/Sources/QuickLayoutView.swift\` — SwiftUI grid popup for layout selection
-- \`WindowDity/Sources/WindowManager.swift\` — Accessibility API window control (move/resize)
-- \`WindowDity/Sources/LayoutPreset.swift\` — preset definitions
-- \`WindowDity/Sources/PreferencesView.swift\` — settings for custom sizes
-- \`WindowDity/Info.plist\` — with NSAccessibilityUsageDescription
-- \`WindowDity/WindowDity.entitlements\` — with accessibility entitlement
+- \`WindowDity/Package.swift\` — Swift Package (macOS 13+)
+- \`WindowDity/Sources/AppDelegate.swift\` — app lifecycle, starts drag detector
+- \`WindowDity/Sources/DragDetector.swift\` — global NSEvent monitor for window drags
+- \`WindowDity/Sources/OverlayManager.swift\` — creates/shows/hides overlay windows
+- \`WindowDity/Sources/DropZone.swift\` — drop zone model (frame, preset)
+- \`WindowDity/Sources/DropZoneView.swift\` — overlay view (translucent, hover highlight)
+- \`WindowDity/Sources/LayoutPreset.swift\` — layout preset enum with frame computation
+- \`WindowDity/Sources/WindowManager.swift\` — AXUIElement window control
+- \`WindowDity/Sources/PreferencesView.swift\` — settings
+- \`WindowDity/Sources/WindowDityApp.swift\` — @main entry point
+- \`WindowDity/Info.plist\` — NSAccessibilityUsageDescription, LSUIElement=true
+- \`WindowDity/WindowDity.entitlements\` — sandbox disabled
 
 ## Previous errors
 \`\`\`
@@ -179,7 +199,9 @@ gen_build_prompt() {
 You are a build agent. Execute one task from the plan.
 
 ## Objective context
-Build "WindowDity" — a native macOS window management app with menu bar Quick Layout popup, using Swift + AppKit/SwiftUI and Accessibility API.
+Build "WindowDity" — a macOS window management app that detects window drags,
+shows overlay drop zones on screen, and snaps windows to the chosen zone via
+Accessibility API (AXUIElement).
 
 ## Context — read FIRST
 1. `output/plan.json` — task list
@@ -197,8 +219,10 @@ Build "WindowDity" — a native macOS window management app with menu bar Quick 
 - ONE task per iteration.
 - Actually create/modify the target files — do not just toggle passes.
 - All app source files go under `WindowDity/` in the project root.
-- Use SwiftUI for UI components, AppKit for system integration (NSStatusBar, NSPopover).
-- Use AXUIElement API for window management via Accessibility framework.
+- Use AppKit for overlays (borderless NSWindow, level .floating or .screenSaver).
+- Use global NSEvent.addGlobalMonitorForEvents for drag detection.
+- Use AXUIElement API for window move/resize.
+- Overlays must be translucent and highlight on cursor hover.
 
 ## Completion
 If ALL tasks have `passes: true`, output: <promise>CYCLE_DONE</promise>
@@ -361,10 +385,12 @@ PY
     # Core source files must exist
     local required_files=(
         "WindowDity/Sources/AppDelegate.swift"
-        "WindowDity/Sources/StatusBarController.swift"
-        "WindowDity/Sources/QuickLayoutView.swift"
-        "WindowDity/Sources/WindowManager.swift"
+        "WindowDity/Sources/DragDetector.swift"
+        "WindowDity/Sources/OverlayManager.swift"
+        "WindowDity/Sources/DropZone.swift"
+        "WindowDity/Sources/DropZoneView.swift"
         "WindowDity/Sources/LayoutPreset.swift"
+        "WindowDity/Sources/WindowManager.swift"
     )
     for f in "${required_files[@]}"; do
         [[ ! -f "$f" ]] && errors+=("Missing required file: $f")
@@ -384,13 +410,16 @@ PY
     fi
 
     # Key classes/structs must exist in source
-    grep -rq "class WindowManager" WindowDity/Sources/ 2>/dev/null || \
-        grep -rq "struct WindowManager" WindowDity/Sources/ 2>/dev/null || \
+    grep -rq "class WindowManager\|struct WindowManager" WindowDity/Sources/ 2>/dev/null || \
         errors+=("WindowManager class/struct not found in sources.")
-    grep -rq "StatusBarController\|NSStatusBar\|NSStatusItem" WindowDity/Sources/ 2>/dev/null || \
-        errors+=("StatusBar integration not found in sources.")
-    grep -rq "AXUIElement\|CGWindowListCopyWindowInfo" WindowDity/Sources/ 2>/dev/null || \
-        errors+=("Accessibility API usage not found in sources.")
+    grep -rq "class DragDetector\|struct DragDetector" WindowDity/Sources/ 2>/dev/null || \
+        errors+=("DragDetector not found in sources.")
+    grep -rq "class OverlayManager\|struct OverlayManager" WindowDity/Sources/ 2>/dev/null || \
+        errors+=("OverlayManager not found in sources.")
+    grep -rq "AXUIElement" WindowDity/Sources/ 2>/dev/null || \
+        errors+=("Accessibility API (AXUIElement) usage not found in sources.")
+    grep -rq "addGlobalMonitorForEvents\|CGEvent" WindowDity/Sources/ 2>/dev/null || \
+        errors+=("Global event monitoring not found in sources.")
 
     # Swift build check
     if ls WindowDity/*.xcodeproj 1>/dev/null 2>&1; then
