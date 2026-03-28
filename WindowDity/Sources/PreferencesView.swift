@@ -38,66 +38,54 @@ struct LayoutGridPreview: View {
     }
 }
 
-struct StripPositionPreview: View {
-    @Binding var positionX: Double
+struct ScreenPositionPreview: View {
     @Binding var positionY: Double
     var isHorizontal: Bool
 
-    private let previewWidth: CGFloat = 300
-    private let previewHeight: CGFloat = 180
-
+    private let previewWidth: CGFloat = 280
+    private let previewHeight: CGFloat = 160
     private var stripWidth: CGFloat { isHorizontal ? 80 : 24 }
     private var stripHeight: CGFloat { isHorizontal ? 24 : 80 }
 
     var body: some View {
-        let clampedX = min(max(positionX, 0), 1)
-        let clampedY = min(max(positionY, 0), 1)
-        let maxOffsetX = previewWidth - stripWidth
         let maxOffsetY = previewHeight - stripHeight
-        let stripX = clampedX * maxOffsetX
-        let stripY = clampedY * maxOffsetY
+        let stripY = min(max(positionY, 0), 1) * maxOffsetY
 
-        ZStack(alignment: .topLeading) {
-            // Blue gradient screen background
-            RoundedRectangle(cornerRadius: 6)
-                .fill(
-                    LinearGradient(
-                        colors: [Color.blue.opacity(0.5), Color.blue.opacity(0.8)],
-                        startPoint: .top,
-                        endPoint: .bottom
+        HStack(spacing: 12) {
+            // Screen preview with strip indicator
+            ZStack(alignment: .topLeading) {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.blue.opacity(0.5), Color.blue.opacity(0.8)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
                     )
-                )
-                .frame(width: previewWidth, height: previewHeight)
 
-            // Draggable strip thumbnail
-            stripThumbnail
-                .offset(x: stripX, y: stripY)
-                .gesture(
-                    DragGesture(minimumDistance: 0, coordinateSpace: .named("screenPreview"))
-                        .onChanged { value in
-                            let newX = (value.location.x - stripWidth / 2) / maxOffsetX
-                            let newY = (value.location.y - stripHeight / 2) / maxOffsetY
-                            positionX = min(max(newX, 0), 1)
-                            positionY = min(max(newY, 0), 1)
-                        }
-                )
+                // Strip thumbnail centered horizontally, positioned by slider
+                stripThumbnail
+                    .offset(x: (previewWidth - stripWidth) / 2, y: stripY)
+            }
+            .frame(width: previewWidth, height: previewHeight)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+
+            // Vertical slider to control position
+            Slider(value: $positionY, in: 0...1)
+                .rotationEffect(.degrees(-90))
+                .frame(width: previewHeight, height: 20)
+                .frame(width: 20, height: previewHeight)
         }
-        .coordinateSpace(name: "screenPreview")
-        .frame(width: previewWidth, height: previewHeight)
-        .clipShape(RoundedRectangle(cornerRadius: 6))
     }
 
     private var stripThumbnail: some View {
-        let iconCount = 3
         let layout = isHorizontal ? AnyLayout(HStackLayout(spacing: 3)) : AnyLayout(VStackLayout(spacing: 3))
-
         return ZStack {
             RoundedRectangle(cornerRadius: 3)
                 .fill(Color.black.opacity(0.25))
                 .frame(width: stripWidth, height: stripHeight)
-
             layout {
-                ForEach(0..<iconCount, id: \.self) { _ in
+                ForEach(0..<3, id: \.self) { _ in
                     RoundedRectangle(cornerRadius: 2)
                         .fill(Color(white: 0.25))
                         .frame(width: 16, height: 16)
@@ -114,8 +102,7 @@ struct PreferencesView: View {
     @State private var editingLayout: Layout?
     @State private var launchAtLogin = false
     @AppStorage("overlayOrientation") private var overlayOrientation: String = "horizontal"
-    @AppStorage("overlayPositionX") private var overlayPositionX: Double = 0.5
-    @AppStorage("overlayPositionY") private var overlayPositionY: Double = 0.0
+    @AppStorage("overlayPositionY") private var overlayPositionY: Double = 0.5
     @AppStorage("overlayMaxWidth") private var overlayMaxWidth: Int = 300
     @AppStorage("overlayMargins") private var overlayMargins: Int = 700
 
@@ -124,9 +111,6 @@ struct PreferencesView: View {
             TabView {
                 layoutsTab
                     .tabItem { Text("Layouts") }
-
-                optionsTab
-                    .tabItem { Text("Options") }
 
                 positioningTab
                     .tabItem { Text("Positioning") }
@@ -149,7 +133,7 @@ struct PreferencesView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
         }
-        .frame(width: 440, height: 400)
+        .frame(minWidth: 440, maxWidth: 440, minHeight: 520, maxHeight: 700)
         .sheet(item: $editingLayout) { layout in
             LayoutEditorView(layout: layout) { updated in
                 store.update(updated)
@@ -223,16 +207,6 @@ struct PreferencesView: View {
         }
     }
 
-    // MARK: - Options Tab
-
-    private var optionsTab: some View {
-        Form {
-            Text("General options will appear here.")
-                .foregroundColor(.secondary)
-        }
-        .padding()
-    }
-
     // MARK: - Positioning Tab
 
     private var positioningTab: some View {
@@ -259,8 +233,7 @@ struct PreferencesView: View {
                 Text("Screen position")
                     .font(.headline)
 
-                StripPositionPreview(
-                    positionX: $overlayPositionX,
+                ScreenPositionPreview(
                     positionY: $overlayPositionY,
                     isHorizontal: overlayOrientation == "horizontal"
                 )

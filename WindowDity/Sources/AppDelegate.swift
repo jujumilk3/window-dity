@@ -34,6 +34,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, DragDetectorDelegate {
         }
 
         let menu = NSMenu()
+
+        let aboutItem = NSMenuItem(
+            title: "About WindowDity",
+            action: #selector(showAbout),
+            keyEquivalent: ""
+        )
+        aboutItem.target = self
+        menu.addItem(aboutItem)
+
+        menu.addItem(.separator())
+
         let prefsItem = NSMenuItem(
             title: "Preferences\u{2026}",
             action: #selector(openPreferences),
@@ -41,7 +52,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, DragDetectorDelegate {
         )
         prefsItem.target = self
         menu.addItem(prefsItem)
+
         menu.addItem(.separator())
+
         menu.addItem(NSMenuItem(
             title: "Quit WindowDity",
             action: #selector(NSApplication.terminate(_:)),
@@ -67,6 +80,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, DragDetectorDelegate {
         NSApp.activate(ignoringOtherApps: true)
 
         preferencesWindow = window
+    }
+
+    @objc private func showAbout() {
+        let credits = NSAttributedString(
+            string: "A Window Tidy-inspired window manager.\nBuilt with looprinter.\n\nhttps://github.com/jujumilk3/window-dity",
+            attributes: [
+                .font: NSFont.systemFont(ofSize: 11),
+                .foregroundColor: NSColor.secondaryLabelColor
+            ]
+        )
+        let options: [NSApplication.AboutPanelOptionKey: Any] = [
+            .applicationName: "WindowDity",
+            .applicationVersion: "1.0",
+            .version: "1",
+            .credits: credits
+        ]
+        NSApp.activate(ignoringOtherApps: true)
+        NSApp.orderFrontStandardAboutPanel(options: options)
     }
 
     // MARK: - DragDetectorDelegate

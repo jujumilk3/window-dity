@@ -23,6 +23,11 @@ let package = Package(
                     "-Xlinker", "WindowDity.entitlements"
                 ])
             ]
+        ),
+        .testTarget(
+            name: "WindowDityTests",
+            dependencies: ["WindowDity"],
+            path: "Tests"
         )
     ]
 )

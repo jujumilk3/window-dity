@@ -73,7 +73,7 @@ struct LayoutEditorView: View {
                 Text("Screen Position")
                     .font(.caption)
                     .foregroundColor(.secondary)
-                ScreenPositionPreview(layout: currentLayout)
+                LayoutPositionPreview(layout: currentLayout)
             }
             .padding(.top, 4)
 
@@ -104,7 +104,7 @@ struct LayoutEditorView: View {
     }
 }
 
-private struct ScreenPositionPreview: View {
+private struct LayoutPositionPreview: View {
     let layout: Layout
 
     private let previewWidth: CGFloat = 200

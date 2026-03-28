@@ -57,28 +57,33 @@ final class OverlayView: NSView {
         let cellW = gridRect.width / CGFloat(layout.cols)
         let cellH = gridRect.height / CGFloat(layout.rows)
 
-        for row in 0..<layout.rows {
-            for col in 0..<layout.cols {
-                let cellRect = NSRect(
-                    x: gridRect.origin.x + CGFloat(col) * cellW,
-                    y: gridRect.origin.y + gridRect.height - CGFloat(row + 1) * cellH,
-                    width: cellW,
-                    height: cellH
-                ).insetBy(dx: 1.5, dy: 1.5)
+        // Draw screen background (unselected area)
+        let screenBg = NSBezierPath(roundedRect: gridRect.insetBy(dx: 1, dy: 1), xRadius: 3, yRadius: 3)
+        NSColor.white.withAlphaComponent(0.1).setFill()
+        screenBg.fill()
+        NSColor.white.withAlphaComponent(0.3).setStroke()
+        screenBg.lineWidth = 0.5
+        screenBg.stroke()
 
-                let cellPath = NSBezierPath(roundedRect: cellRect, xRadius: 2, yRadius: 2)
+        // Draw selected region as a single filled block
+        if !layout.selectedCells.isEmpty {
+            let minRow = layout.selectedCells.map(\.row).min()!
+            let maxRow = layout.selectedCells.map(\.row).max()!
+            let minCol = layout.selectedCells.map(\.col).min()!
+            let maxCol = layout.selectedCells.map(\.col).max()!
 
-                if layout.selectedCells.contains(CellIndex(row: row, col: col)) {
-                    NSColor.controlAccentColor.withAlphaComponent(0.8).setFill()
-                    cellPath.fill()
-                } else {
-                    NSColor.white.withAlphaComponent(0.15).setFill()
-                    cellPath.fill()
-                    NSColor.white.withAlphaComponent(0.3).setStroke()
-                    cellPath.lineWidth = 0.5
-                    cellPath.stroke()
-                }
-            }
+            let blockRect = NSRect(
+                x: gridRect.origin.x + CGFloat(minCol) * cellW + 2,
+                y: gridRect.origin.y + gridRect.height - CGFloat(maxRow + 1) * cellH + 2,
+                width: CGFloat(maxCol - minCol + 1) * cellW - 4,
+                height: CGFloat(maxRow - minRow + 1) * cellH - 4
+            )
+            let blockPath = NSBezierPath(roundedRect: blockRect, xRadius: 3, yRadius: 3)
+            NSColor.controlAccentColor.withAlphaComponent(0.8).setFill()
+            blockPath.fill()
+            NSColor.controlAccentColor.setStroke()
+            blockPath.lineWidth = 1
+            blockPath.stroke()
         }
 
         // Layout name label

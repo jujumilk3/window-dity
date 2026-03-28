@@ -20,58 +20,44 @@ final class OverlayManager {
         guard !layouts.isEmpty,
               let screen = NSScreen.main else { return }
 
-        // Read positioning settings from UserDefaults
         let defaults = UserDefaults.standard
-        defaults.register(defaults: [
-            "overlayOrientation": "horizontal",
-            "overlayPositionX": 0.5,
-            "overlayPositionY": 0.0,
-            "overlayMaxWidth": 300,
-            "overlayMargins": 700
-        ])
         let orientation = defaults.string(forKey: "overlayOrientation") ?? "horizontal"
-        let posX = defaults.double(forKey: "overlayPositionX")
-        let posY = defaults.double(forKey: "overlayPositionY")
-        let maxWidth = CGFloat(defaults.integer(forKey: "overlayMaxWidth"))
-        let margins = CGFloat(defaults.integer(forKey: "overlayMargins"))
+        let posY = CGFloat(defaults.object(forKey: "overlayPositionY") as? Double ?? 0.5)
+        let maxWidth = CGFloat(max(defaults.integer(forKey: "overlayMaxWidth"), 100))
 
         let isVertical = orientation == "vertical"
         let count = CGFloat(layouts.count)
 
-        // Calculate natural strip length along primary axis
-        let naturalLength: CGFloat
+        // Natural strip size at full scale
+        let naturalPrimary: CGFloat
         if isVertical {
-            naturalLength = count * overlayHeight + (count - 1) * spacing
+            naturalPrimary = count * overlayHeight + (count - 1) * spacing
         } else {
-            naturalLength = count * overlayWidth + (count - 1) * spacing
+            naturalPrimary = count * overlayWidth + (count - 1) * spacing
         }
 
-        // Scale thumbnails down if strip exceeds maxWidth
-        let scale: CGFloat = (maxWidth > 0 && naturalLength > maxWidth)
-            ? maxWidth / naturalLength
-            : 1.0
+        // Scale down if strip exceeds maxWidth
+        let scale: CGFloat = naturalPrimary > maxWidth ? maxWidth / naturalPrimary : 1.0
         let itemW = overlayWidth * scale
         let itemH = overlayHeight * scale
         let gap = spacing * scale
 
-        // Compute final strip dimensions
-        let stripWidth: CGFloat
-        let stripHeight: CGFloat
+        // Final strip dimensions
+        let stripW: CGFloat
+        let stripH: CGFloat
         if isVertical {
-            stripWidth = itemW
-            stripHeight = count * itemH + (count - 1) * gap
+            stripW = itemW
+            stripH = count * itemH + (count - 1) * gap
         } else {
-            stripWidth = count * itemW + (count - 1) * gap
-            stripHeight = itemH
+            stripW = count * itemW + (count - 1) * gap
+            stripH = itemH
         }
 
-        // Position within usable screen area (inset by margins split on each side)
-        let sf = screen.frame
-        let halfMargin = margins / 2
-        let usableW = max(sf.width - margins, stripWidth)
-        let usableH = max(sf.height - margins, stripHeight)
-        let stripX = sf.origin.x + halfMargin + posX * (usableW - stripWidth)
-        let stripY = sf.origin.y + halfMargin + posY * (usableH - stripHeight)
+        // Position: horizontally centered, vertically controlled by posY (0=top, 1=bottom)
+        // NSScreen uses bottom-left origin, so invert Y
+        let sf = screen.visibleFrame
+        let stripX = sf.midX - stripW / 2
+        let stripY = sf.maxY - stripH - posY * (sf.height - stripH)
 
         for (i, layout) in layouts.enumerated() {
             let view = OverlayView(layout: layout)
@@ -80,7 +66,8 @@ final class OverlayManager {
             let y: CGFloat
             if isVertical {
                 x = stripX
-                y = stripY + CGFloat(i) * (itemH + gap)
+                // Vertical: stack top-to-bottom, but NSScreen Y goes up
+                y = stripY + stripH - CGFloat(i + 1) * itemH - CGFloat(i) * gap
             } else {
                 x = stripX + CGFloat(i) * (itemW + gap)
                 y = stripY
