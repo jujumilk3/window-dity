@@ -140,7 +140,12 @@ struct PreferencesView: View {
         .frame(width: 440, height: 520)
         .sheet(item: $editingLayout) { layout in
             LayoutEditorView(layout: layout) { updated in
-                store.update(updated)
+                if store.layouts.contains(where: { $0.id == updated.id }) {
+                    store.update(updated)
+                } else {
+                    store.add(updated)
+                    selection = updated.id
+                }
             }
         }
     }
@@ -277,8 +282,6 @@ struct PreferencesView: View {
             rows: 2, cols: 2,
             selectedCells: [CellIndex(row: 0, col: 0)]
         )
-        store.add(layout)
-        selection = layout.id
         editingLayout = layout
     }
 

@@ -39,31 +39,39 @@ struct LayoutEditorView: View {
                 .onChange(of: cols) { _ in pruneSelection() }
             }
 
-            // Interactive grid
+            // Interactive grid — drag to select rectangular region
             let cellSize: CGFloat = 50
             let gridW = CGFloat(cols) * cellSize
             let gridH = CGFloat(rows) * cellSize
 
-            VStack(spacing: 0) {
-                ForEach(0..<rows, id: \.self) { row in
-                    HStack(spacing: 0) {
-                        ForEach(0..<cols, id: \.self) { col in
-                            let idx = CellIndex(row: row, col: col)
-                            let selected = selectedCells.contains(idx)
-                            Rectangle()
-                                .fill(selected ? Color.accentColor : Color.secondary.opacity(0.15))
-                                .border(Color.secondary.opacity(0.4), width: 0.5)
-                                .frame(width: cellSize, height: cellSize)
-                                .onTapGesture {
-                                    if selected {
-                                        selectedCells.remove(idx)
-                                    } else {
-                                        selectedCells.insert(idx)
-                                    }
-                                }
+            ZStack(alignment: .topLeading) {
+                // Grid cells
+                VStack(spacing: 0) {
+                    ForEach(0..<rows, id: \.self) { row in
+                        HStack(spacing: 0) {
+                            ForEach(0..<cols, id: \.self) { col in
+                                let idx = CellIndex(row: row, col: col)
+                                let selected = selectedCells.contains(idx)
+                                Rectangle()
+                                    .fill(selected ? Color.accentColor : Color.secondary.opacity(0.15))
+                                    .border(Color.secondary.opacity(0.4), width: 0.5)
+                                    .frame(width: cellSize, height: cellSize)
+                            }
                         }
                     }
                 }
+
+                // Drag overlay to capture gesture
+                Color.clear
+                    .contentShape(Rectangle())
+                    .gesture(
+                        DragGesture(minimumDistance: 0, coordinateSpace: .local)
+                            .onChanged { value in
+                                let startCell = cellAt(value.startLocation, cellSize: cellSize)
+                                let endCell = cellAt(value.location, cellSize: cellSize)
+                                selectedCells = cellsInRect(from: startCell, to: endCell)
+                            }
+                    )
             }
             .frame(width: gridW, height: gridH)
             .border(Color.secondary.opacity(0.6), width: 1)
@@ -101,6 +109,26 @@ struct LayoutEditorView: View {
 
     private func pruneSelection() {
         selectedCells = selectedCells.filter { $0.row < rows && $0.col < cols }
+    }
+
+    private func cellAt(_ point: CGPoint, cellSize: CGFloat) -> CellIndex {
+        let col = max(0, min(cols - 1, Int(point.x / cellSize)))
+        let row = max(0, min(rows - 1, Int(point.y / cellSize)))
+        return CellIndex(row: row, col: col)
+    }
+
+    private func cellsInRect(from a: CellIndex, to b: CellIndex) -> Set<CellIndex> {
+        let minRow = min(a.row, b.row)
+        let maxRow = max(a.row, b.row)
+        let minCol = min(a.col, b.col)
+        let maxCol = max(a.col, b.col)
+        var cells = Set<CellIndex>()
+        for r in minRow...maxRow {
+            for c in minCol...maxCol {
+                cells.insert(CellIndex(row: r, col: c))
+            }
+        }
+        return cells
     }
 }
 
