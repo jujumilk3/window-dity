@@ -94,7 +94,8 @@ final class DragDetector {
         let err = AXUIElementCopyAttributeValue(
             appRef, kAXFocusedWindowAttribute as CFString, &value
         )
-        guard err == .success else { return nil }
+        guard err == .success, let value else { return nil }
+        // AXUIElement is a CFTypeRef typedef — cast is always valid after success check
         return (value as! AXUIElement)
     }
 }

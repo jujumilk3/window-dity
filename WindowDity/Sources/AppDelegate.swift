@@ -9,6 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, DragDetectorDelegate {
     private var overlayManager: OverlayManager!
     private var capturedWindowRef: AXUIElement?
     private var preferencesWindow: NSWindow?
+    private var prefsCloseObserver: Any?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         if !WindowManager.hasAccessibilityPermission {
@@ -87,7 +88,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, DragDetectorDelegate {
         NSApp.activate(ignoringOtherApps: true)
 
         // When window closes, resume drag detection and go back to accessory mode
-        NotificationCenter.default.addObserver(
+        if let old = prefsCloseObserver {
+            NotificationCenter.default.removeObserver(old)
+        }
+        prefsCloseObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.willCloseNotification,
             object: window,
             queue: .main

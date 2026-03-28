@@ -27,7 +27,8 @@ let package = Package(
         .testTarget(
             name: "WindowDityTests",
             dependencies: ["WindowDity"],
-            path: "Tests"
+            path: "Tests",
+            exclude: ["E2E"]
         )
     ]
 )
