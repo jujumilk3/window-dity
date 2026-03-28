@@ -64,6 +64,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, DragDetectorDelegate {
     }
 
     @objc private func openPreferences() {
+        // Stop drag detection so it doesn't interfere with Preferences clicks
+        dragDetector.stop()
+
         // Temporarily become a regular app so the window can receive focus
         NSApp.setActivationPolicy(.regular)
 
@@ -83,7 +86,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, DragDetectorDelegate {
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
 
-        // When window closes, go back to accessory mode
+        // When window closes, resume drag detection and go back to accessory mode
         NotificationCenter.default.addObserver(
             forName: NSWindow.willCloseNotification,
             object: window,
@@ -91,6 +94,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, DragDetectorDelegate {
         ) { [weak self] _ in
             NSApp.setActivationPolicy(.accessory)
             self?.preferencesWindow = nil
+            self?.dragDetector.start()
         }
 
         preferencesWindow = window
