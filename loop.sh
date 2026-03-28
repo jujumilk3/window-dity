@@ -124,21 +124,20 @@ All files in project root. Delete all existing files in `WindowDity/Sources/` fi
 - `WindowDity/Info.plist` — NSAccessibilityUsageDescription, LSUIElement=true
 - `WindowDity/WindowDity.entitlements` — sandbox disabled for AX API
 
-## CRITICAL bugs to fix (these MUST be addressed)
-1. Preferences window not opening — NSMenuItem target must be set explicitly to the AppDelegate
-   instance (not nil). When target is nil, the selector goes through the responder chain but
-   AppDelegate is NOT in the responder chain for menu items. Fix: set menuItem.target = self.
-   The current NSHostingController approach is correct, just fix the target.
-2. PreferencesView must match the Window Tidy reference UI (see references/preference.png):
-   - Window title "WindowDity Preferences"
-   - Tabs at top: Layouts, Options
-   - Layouts tab: scrollable list with grid preview thumbnails (larger, ~60x40), name, grid info
-   - Each layout row: blue grid preview image on left, name + "N x M grid, from (r,c) to (r,c)" + "All Screens" on right
-   - Bottom: "Launch WindowDity at login" checkbox + "Done" button
-   - Add/remove layouts with +/- buttons
-   - Double-click a layout to edit it
-3. LayoutEditorView must allow editing the layout's position on screen — not just which cells
-   are selected, but also allow the user to see where the layout will place the window.
+## Feature to add
+Add a "Positioning" tab to PreferencesView (see references/preference2.png):
+- **Orientation section**: Radio buttons — "Arrange Icons horizontally" / "Arrange Icons vertically"
+  Store as @AppStorage("overlayOrientation") String ("horizontal" or "vertical")
+- **Screen position section**: A miniature screen preview (~300x180) showing where the overlay
+  strip appears. The strip thumbnail should be draggable within the screen preview to set position.
+  Store position as @AppStorage("overlayPositionX") and @AppStorage("overlayPositionY") as
+  normalized values (0.0-1.0 relative to screen).
+- **Dimensions section**: "Maximum Width" text field + "Margins" text field.
+  Store as @AppStorage("overlayMaxWidth") Int (default 300) and @AppStorage("overlayMargins") Int (default 700).
+- Keep "Launch WindowDity at login" checkbox at bottom.
+- OverlayManager must read these settings when creating overlay windows and position/orient them accordingly.
+
+This is an UPDATE — only modify PreferencesView.swift and OverlayManager.swift. Do NOT delete or rewrite other files.
 
 ## Context
 1. Read `output/progress.txt` first; do not duplicate work already marked as done.
