@@ -13,6 +13,17 @@ struct Layout: Codable, Identifiable {
     var cols: Int
     var selectedCells: Set<CellIndex>
 
+    var gridDescription: String {
+        guard !selectedCells.isEmpty else {
+            return "\(rows) x \(cols) grid"
+        }
+        let minRow = selectedCells.map(\.row).min()! + 1
+        let maxRow = selectedCells.map(\.row).max()! + 1
+        let minCol = selectedCells.map(\.col).min()! + 1
+        let maxCol = selectedCells.map(\.col).max()! + 1
+        return "\(rows) x \(cols) grid, from (\(minRow), \(minCol)) to (\(maxRow), \(maxCol))"
+    }
+
     func frame(for screenFrame: CGRect) -> CGRect {
         guard !selectedCells.isEmpty else { return screenFrame }
 

@@ -34,11 +34,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, DragDetectorDelegate {
         }
 
         let menu = NSMenu()
-        menu.addItem(NSMenuItem(
+        let prefsItem = NSMenuItem(
             title: "Preferences\u{2026}",
             action: #selector(openPreferences),
             keyEquivalent: ","
-        ))
+        )
+        prefsItem.target = self
+        menu.addItem(prefsItem)
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(
             title: "Quit WindowDity",

@@ -68,9 +68,14 @@ struct LayoutEditorView: View {
             .frame(width: gridW, height: gridH)
             .border(Color.secondary.opacity(0.6), width: 1)
 
-            // Preview
-            LayoutGridPreview(layout: currentLayout, size: 80)
-                .padding(.top, 4)
+            // Screen position preview
+            VStack(spacing: 4) {
+                Text("Screen Position")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                ScreenPositionPreview(layout: currentLayout)
+            }
+            .padding(.top, 4)
 
             Spacer()
 
@@ -87,7 +92,7 @@ struct LayoutEditorView: View {
             }
         }
         .padding(20)
-        .frame(width: 360, height: 440)
+        .frame(width: 360, height: 520)
     }
 
     private var currentLayout: Layout {
@@ -96,5 +101,38 @@ struct LayoutEditorView: View {
 
     private func pruneSelection() {
         selectedCells = selectedCells.filter { $0.row < rows && $0.col < cols }
+    }
+}
+
+private struct ScreenPositionPreview: View {
+    let layout: Layout
+
+    private let previewWidth: CGFloat = 200
+    private let previewHeight: CGFloat = 120
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 6)
+                .fill(Color.secondary.opacity(0.08))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(Color.secondary.opacity(0.4), lineWidth: 1)
+                )
+
+            if !layout.selectedCells.isEmpty {
+                let screenRect = CGRect(x: 0, y: 0, width: previewWidth, height: previewHeight)
+                let frame = layout.frame(for: screenRect)
+
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(Color.accentColor.opacity(0.3))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 2)
+                            .stroke(Color.accentColor, lineWidth: 1.5)
+                    )
+                    .frame(width: frame.width, height: frame.height)
+                    .position(x: frame.midX, y: frame.midY)
+            }
+        }
+        .frame(width: previewWidth, height: previewHeight)
     }
 }

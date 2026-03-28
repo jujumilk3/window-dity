@@ -2,13 +2,18 @@ import SwiftUI
 
 struct LayoutGridPreview: View {
     let layout: Layout
-    let size: CGFloat
+    var width: CGFloat = 60
+    var height: CGFloat = 40
 
     var body: some View {
-        let cellW = size / CGFloat(layout.cols)
-        let cellH = size / CGFloat(layout.rows)
+        let cellW = width / CGFloat(layout.cols)
+        let cellH = height / CGFloat(layout.rows)
 
         Canvas { context, _ in
+            // Fill entire background with a subtle base
+            let bg = CGRect(x: 0, y: 0, width: width, height: height)
+            context.fill(Path(bg), with: .color(Color.accentColor.opacity(0.15)))
+
             for row in 0..<layout.rows {
                 for col in 0..<layout.cols {
                     let rect = CGRect(
@@ -23,12 +28,13 @@ struct LayoutGridPreview: View {
                                      with: .color(.accentColor))
                     }
                     context.stroke(Path(rect.insetBy(dx: 0.5, dy: 0.5)),
-                                   with: .color(.secondary.opacity(0.5)),
+                                   with: .color(.secondary.opacity(0.4)),
                                    lineWidth: 1)
                 }
             }
         }
-        .frame(width: size, height: size)
+        .frame(width: width, height: height)
+        .clipShape(RoundedRectangle(cornerRadius: 4))
     }
 }
 
@@ -36,18 +42,67 @@ struct PreferencesView: View {
     @ObservedObject var store: LayoutStore
     @State private var selection: UUID?
     @State private var editingLayout: Layout?
+    @State private var launchAtLogin = false
 
     var body: some View {
         VStack(spacing: 0) {
+            TabView {
+                layoutsTab
+                    .tabItem { Text("Layouts") }
+
+                optionsTab
+                    .tabItem { Text("Options") }
+            }
+
+            Divider()
+
+            // Bottom bar
+            HStack {
+                Toggle("Launch WindowDity at login", isOn: $launchAtLogin)
+                    .toggleStyle(.checkbox)
+
+                Spacer()
+
+                Button("Done") {
+                    NSApp.keyWindow?.close()
+                }
+                .keyboardShortcut(.defaultAction)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+        }
+        .frame(width: 440, height: 400)
+        .sheet(item: $editingLayout) { layout in
+            LayoutEditorView(layout: layout) { updated in
+                store.update(updated)
+            }
+        }
+    }
+
+    // MARK: - Layouts Tab
+
+    private var layoutsTab: some View {
+        VStack(spacing: 0) {
+            Text("Drag layouts in this list to change their order. Double click a layout to edit its settings.")
+                .font(.callout)
+                .foregroundColor(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 16)
+                .padding(.top, 10)
+                .padding(.bottom, 6)
+
             List(selection: $selection) {
                 ForEach(store.layouts) { layout in
                     HStack(spacing: 12) {
-                        LayoutGridPreview(layout: layout, size: 40)
+                        LayoutGridPreview(layout: layout, width: 60, height: 40)
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text(layout.name)
-                                .fontWeight(.medium)
-                            Text("\(layout.rows) \u{00d7} \(layout.cols) grid")
+                                .fontWeight(.bold)
+                            Text(layout.gridDescription)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text("All Screens")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
@@ -71,33 +126,36 @@ struct PreferencesView: View {
 
             Divider()
 
-            HStack {
+            HStack(spacing: 4) {
                 Button(action: addLayout) {
                     Image(systemName: "plus")
                 }
+                .buttonStyle(.borderless)
+
                 Button(action: removeSelected) {
                     Image(systemName: "minus")
                 }
+                .buttonStyle(.borderless)
                 .disabled(selection == nil)
 
                 Spacer()
-
-                Button("Edit") {
-                    guard let sel = selection,
-                          let layout = store.layouts.first(where: { $0.id == sel }) else { return }
-                    editingLayout = layout
-                }
-                .disabled(selection == nil)
             }
-            .padding(8)
-        }
-        .frame(width: 400, height: 350)
-        .sheet(item: $editingLayout) { layout in
-            LayoutEditorView(layout: layout) { updated in
-                store.update(updated)
-            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
         }
     }
+
+    // MARK: - Options Tab
+
+    private var optionsTab: some View {
+        Form {
+            Text("General options will appear here.")
+                .foregroundColor(.secondary)
+        }
+        .padding()
+    }
+
+    // MARK: - Actions
 
     private func addLayout() {
         let layout = Layout(

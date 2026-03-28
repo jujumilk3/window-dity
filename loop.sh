@@ -124,15 +124,27 @@ All files in project root. Delete all existing files in `WindowDity/Sources/` fi
 - `WindowDity/Info.plist` — NSAccessibilityUsageDescription, LSUIElement=true
 - `WindowDity/WindowDity.entitlements` — sandbox disabled for AX API
 
-## Known bugs to fix from previous implementation
-1. Window resizing not working — getFocusedWindow() may not return the window being dragged. Instead, capture the frontmost window PID+window ref BEFORE drag starts (on mouseDown), then use that reference for moveAndResize on drop.
-2. Preferences window not opening — use NSApp.sendAction(Selector(("showSettingsWindow:"))) on macOS 13+, fall back to "showPreferencesWindow:" on older. Also ensure NSApp.activate() is called first.
-3. Overlays should appear as a horizontal strip of layout thumbnails near the bottom center of the screen, not as full-zone screen overlays.
+## CRITICAL bugs to fix (these MUST be addressed)
+1. Preferences window not opening — NSMenuItem target must be set explicitly to the AppDelegate
+   instance (not nil). When target is nil, the selector goes through the responder chain but
+   AppDelegate is NOT in the responder chain for menu items. Fix: set menuItem.target = self.
+   The current NSHostingController approach is correct, just fix the target.
+2. PreferencesView must match the Window Tidy reference UI (see references/preference.png):
+   - Window title "WindowDity Preferences"
+   - Tabs at top: Layouts, Options
+   - Layouts tab: scrollable list with grid preview thumbnails (larger, ~60x40), name, grid info
+   - Each layout row: blue grid preview image on left, name + "N x M grid, from (r,c) to (r,c)" + "All Screens" on right
+   - Bottom: "Launch WindowDity at login" checkbox + "Done" button
+   - Add/remove layouts with +/- buttons
+   - Double-click a layout to edit it
+3. LayoutEditorView must allow editing the layout's position on screen — not just which cells
+   are selected, but also allow the user to see where the layout will place the window.
 
 ## Context
 1. Read `output/progress.txt` first; do not duplicate work already marked as done.
 2. Keep tasks minimal and directly tied to the objective.
-3. Existing files are from a previous incorrect implementation and must be replaced.
+3. This is an UPDATE to existing code, not a rewrite. Only modify files that need changes.
+4. Do NOT delete existing source files — fix them in place.
 
 ## Job
 1. Read what has been completed and what remains from `output/progress.txt`.
@@ -152,7 +164,7 @@ Schema:
 ## Rules
 - targetFile must be a real file path the task creates or modifies.
 - Use stable, unique IDs (T-001, T-002, ...).
-- First task MUST clean up old source files before creating new ones.
+- Do NOT delete existing source files. Fix/update them in place.
 
 ## Completion
 When done, output: <promise>PLAN_COMPLETE</promise>
@@ -167,9 +179,9 @@ gen_replan_prompt() {
 You are a planning agent running cycle $cycle_num. The previous cycle had issues.
 
 ## Objective (unchanged)
-Read \`SPEC.md\` for the full spec. Build "WindowDity" — a Window Tidy-style macOS
-window management app. User drags a window → layout overlays appear as thumbnail
-strip → drop on a layout → window snaps. Layouts are user-defined in Preferences.
+Read \`SPEC.md\` for the full spec. Fix and improve "WindowDity" — a Window Tidy-style macOS
+window management app. Key fixes: Preferences window must open, UI must match reference
+screenshots, layout editor must support position adjustment.
 
 ## Deliverables (unchanged)
 - \`WindowDity/Package.swift\` — Swift Package (macOS 13+)
@@ -233,11 +245,10 @@ window management app. Drag a window → layout thumbnail overlays appear → dr
 - ONE task per iteration.
 - Actually create/modify the target files — do not just toggle passes.
 - All app source files go under `WindowDity/` in the project root.
-- Overlays: horizontal strip of layout thumbnails near bottom-center of screen (borderless NSWindow).
-- Drag detection: global NSEvent monitor. Capture window ref on mouseDown BEFORE drag.
-- Window control: AXUIElement API for move+resize.
-- Preferences must open correctly (NSApp.activate + sendAction showSettingsWindow:).
-- Layout model: Codable struct persisted as JSON in UserDefaults.
+- Do NOT delete existing source files. Fix/update them in place.
+- For NSMenuItem actions, always set menuItem.target = self explicitly.
+- Preferences must open correctly — set target on menu items, use NSHostingController in NSWindow.
+- PreferencesView must match the Window Tidy reference UI (see references/preference.png).
 
 ## Completion
 If ALL tasks have `passes: true`, output: <promise>CYCLE_DONE</promise>
