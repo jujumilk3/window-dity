@@ -4,7 +4,7 @@ A Window Tidy-inspired macOS window management app, built entirely by an AI agen
 
 This project is an example of what [looprinter](https://github.com/tapesymbolstate/looprinter) can produce — a self-contained iterative agent harness that plans, builds, verifies, and tests code autonomously.
 
-<video src="demo.mov" width="100%" autoplay loop muted playsinline></video>
+<video src="demo.mp4" width="100%" autoplay loop muted playsinline></video>
 
 ## What it does
 
