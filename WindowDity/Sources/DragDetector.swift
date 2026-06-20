@@ -12,9 +12,13 @@ final class DragDetector {
 
     private var monitor: Any?
     private var capturedWindow: AXUIElement?
-    private var mouseDownLocation: NSPoint?
+    private var initialWindowPosition: CGPoint?
     private var isDragging = false
-    private let dragThreshold: CGFloat = 10.0
+
+    // The focused window must shift at least this much (points) for the gesture
+    // to count as a window drag. Content drags — text selection, rubber-band
+    // select, sliders, drag-and-drop — never move the window, so they're ignored.
+    private let windowMoveThreshold: CGFloat = 3.0
 
     func start() {
         guard monitor == nil else { return }
@@ -47,30 +51,30 @@ final class DragDetector {
     }
 
     private func handleMouseDown() {
-        mouseDownLocation = NSEvent.mouseLocation
-        // CRITICAL: capture window ref NOW, before drag begins.
-        // After drag starts the frontmost app may change.
+        // Capture the window and its position NOW, before the drag begins —
+        // afterwards the frontmost app may change.
         capturedWindow = captureActiveWindow()
+        initialWindowPosition = capturedWindow.flatMap(windowPosition)
         isDragging = false
     }
 
     private func handleMouseDragged() {
-        guard let start = mouseDownLocation,
-              let windowRef = capturedWindow else { return }
-
-        let current = NSEvent.mouseLocation
-        let dx = current.x - start.x
-        let dy = current.y - start.y
-        let distance = sqrt(dx * dx + dy * dy)
-
-        if !isDragging && distance >= dragThreshold {
-            isDragging = true
-            delegate?.dragDidStart(windowRef: windowRef, mouseLocation: current)
-        }
-
         if isDragging {
-            delegate?.dragDidMove(mouseLocation: current)
+            delegate?.dragDidMove(mouseLocation: NSEvent.mouseLocation)
+            return
         }
+        guard let windowRef = capturedWindow,
+              let initialPos = initialWindowPosition,
+              let pos = windowPosition(windowRef) else { return }
+
+        // Dragging a title bar moves the window's AX position; dragging content
+        // leaves it put. Start the overlay the moment the window actually moves.
+        let windowMoved = hypot(pos.x - initialPos.x, pos.y - initialPos.y)
+        guard windowMoved >= windowMoveThreshold else { return }
+
+        isDragging = true
+        delegate?.dragDidStart(windowRef: windowRef, mouseLocation: NSEvent.mouseLocation)
+        delegate?.dragDidMove(mouseLocation: NSEvent.mouseLocation)
     }
 
     private func handleMouseUp() {
@@ -81,8 +85,8 @@ final class DragDetector {
     }
 
     private func reset() {
-        mouseDownLocation = nil
         capturedWindow = nil
+        initialWindowPosition = nil
         isDragging = false
     }
 
@@ -98,5 +102,14 @@ final class DragDetector {
         guard err == .success, let value else { return nil }
         // AXUIElement is a CFTypeRef typedef — cast is always valid after success check
         return (value as! AXUIElement)
+    }
+
+    private func windowPosition(_ window: AXUIElement) -> CGPoint? {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(window, kAXPositionAttribute as CFString, &value) == .success,
+              let value else { return nil }
+        var point = CGPoint.zero
+        guard AXValueGetValue(value as! AXValue, .cgPoint, &point) else { return nil }
+        return point
     }
 }
