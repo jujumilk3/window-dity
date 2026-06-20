@@ -4,6 +4,12 @@ output/
 .claude/scheduled_tasks.lock
 references/
 
+## Packaged .app artifacts (regenerate with WindowDity/build-app.sh)
+WindowDity/build/
+/WindowDity.app/
+WindowDity-macos-arm64.zip
+_icon_preview.png
+
 ## Swift / Xcode
 .build/
 .swiftpm/

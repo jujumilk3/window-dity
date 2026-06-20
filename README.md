@@ -40,7 +40,40 @@ See [loop-interview.md](loop-interview.md) for the full iteration history.
 - macOS 13+ (Ventura or later)
 - Xcode Command Line Tools (`xcode-select --install`)
 
-## Build & Run
+## Install as a macOS app
+
+To use WindowDity like a normal app (launch from Spotlight/Launchpad, runs in the
+menu bar), build and install the `.app` bundle:
+
+```bash
+cd WindowDity
+./build-app.sh                 # build + sign + install to /Applications
+```
+
+This compiles a release build, packages it into `WindowDity.app` with an icon,
+ad-hoc code-signs it, and copies it to `/Applications` (falling back to
+`~/Applications` if that isn't writable). Then launch it from Spotlight or:
+
+```bash
+open /Applications/WindowDity.app
+```
+
+Other options:
+
+```bash
+./build-app.sh --no-install    # just build ./build/WindowDity.app
+./build-app.sh ~/Applications  # install to a specific folder
+./make-icon.sh                 # regenerate AppIcon.icns
+```
+
+WindowDity is a menu-bar app — look for the `▥` icon in the top-right menu bar
+(it does not appear in the Dock). Quit it from there.
+
+> **Note:** the build is ad-hoc signed for personal use (no Apple Developer
+> account / notarization). Because a rebuild changes the signature, you may need
+> to re-grant Accessibility after reinstalling.
+
+### Run from source (development)
 
 ```bash
 cd WindowDity
@@ -48,10 +81,19 @@ swift build       # compile
 swift run          # build + launch
 ```
 
-On first launch, macOS will ask for Accessibility permission. Grant it at:
-**System Settings > Privacy & Security > Accessibility > WindowDity**
+## Accessibility permission
 
-This is required for the app to move and resize other windows.
+On first launch, macOS asks for Accessibility permission. Grant it at:
+**System Settings > Privacy & Security > Accessibility > WindowDity** (toggle it on).
+
+This is required for the app to move and resize other windows. If snapping does
+nothing, this toggle is almost always the reason — toggle it off and on after a
+reinstall.
+
+### Launch at login (optional)
+
+**System Settings > General > Login Items > "Open at Login"** → add
+`WindowDity.app`.
 
 ## What is looprinter?
 
