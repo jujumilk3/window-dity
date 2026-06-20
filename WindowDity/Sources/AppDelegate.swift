@@ -10,19 +10,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, DragDetectorDelegate {
     private var capturedWindowRef: AXUIElement?
     private var preferencesWindow: NSWindow?
     private var prefsCloseObserver: Any?
+    private var trustTimer: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        if !WindowManager.hasAccessibilityPermission {
-            WindowManager.requestAccessibilityPermission()
-        }
-
         setupStatusItem()
 
         overlayManager = OverlayManager(store: layoutStore)
 
         dragDetector = DragDetector()
         dragDetector.delegate = self
-        dragDetector.start()
+
+        if WindowManager.hasAccessibilityPermission {
+            dragDetector.start()
+        } else {
+            // Not trusted yet: prompt, then poll so detection starts the moment
+            // the user flips the Accessibility toggle — no relaunch required.
+            WindowManager.requestAccessibilityPermission()
+            trustTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] timer in
+                guard WindowManager.hasAccessibilityPermission else { return }
+                timer.invalidate()
+                self?.trustTimer = nil
+                self?.dragDetector.start()
+            }
+        }
     }
 
     private func setupStatusItem() {

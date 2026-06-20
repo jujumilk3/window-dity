@@ -17,6 +17,7 @@ final class DragDetector {
     private let dragThreshold: CGFloat = 10.0
 
     func start() {
+        guard monitor == nil else { return }
         monitor = NSEvent.addGlobalMonitorForEvents(
             matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp]
         ) { [weak self] event in
