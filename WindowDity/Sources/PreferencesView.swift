@@ -182,9 +182,6 @@ struct PreferencesView: View {
                     }
                     .padding(.vertical, 4)
                     .tag(layout.id)
-                    .onTapGesture(count: 2) {
-                        editingLayout = layout
-                    }
                 }
                 .onMove { source, destination in
                     store.move(from: source, to: destination)
@@ -194,6 +191,20 @@ struct PreferencesView: View {
                 }
             }
             .listStyle(.inset(alternatesRowBackgrounds: true))
+            // Double-click goes through primaryAction instead of a row tap gesture:
+            // a tap gesture on the row swallows single clicks, so the List could
+            // neither select nor drag rows.
+            .contextMenu(forSelectionType: UUID.self) { ids in
+                if !ids.isEmpty {
+                    Button("Edit…") { edit(ids) }
+                        .disabled(ids.count != 1)
+                    Divider()
+                    Button("Delete") { remove(ids) }
+                }
+            } primaryAction: { ids in
+                edit(ids)
+            }
+            .onDeleteCommand(perform: removeSelected)
 
             Divider()
 
@@ -289,5 +300,16 @@ struct PreferencesView: View {
         guard let sel = selection else { return }
         store.remove(id: sel)
         selection = nil
+    }
+
+    private func edit(_ ids: Set<UUID>) {
+        guard ids.count == 1, let id = ids.first,
+              let layout = store.layouts.first(where: { $0.id == id }) else { return }
+        editingLayout = layout
+    }
+
+    private func remove(_ ids: Set<UUID>) {
+        for id in ids { store.remove(id: id) }
+        if let sel = selection, ids.contains(sel) { selection = nil }
     }
 }
