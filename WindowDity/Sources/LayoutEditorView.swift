@@ -39,10 +39,13 @@ struct LayoutEditorView: View {
                 .onChange(of: cols) { _ in pruneSelection() }
             }
 
-            // Interactive grid — drag to select rectangular region
-            let cellSize: CGFloat = 50
-            let gridW = CGFloat(cols) * cellSize
-            let gridH = CGFloat(rows) * cellSize
+            // Interactive grid — a fixed 16:9 screen sliced into rows x cols,
+            // so cells keep the proportions they will have on a real monitor.
+            // Drag to select a rectangular region.
+            let gridW = Self.gridWidth
+            let gridH = Self.gridHeight
+            let cellW = gridW / CGFloat(cols)
+            let cellH = gridH / CGFloat(rows)
 
             ZStack(alignment: .topLeading) {
                 // Grid cells
@@ -55,7 +58,7 @@ struct LayoutEditorView: View {
                                 Rectangle()
                                     .fill(selected ? Color.accentColor : Color.secondary.opacity(0.15))
                                     .border(Color.secondary.opacity(0.4), width: 0.5)
-                                    .frame(width: cellSize, height: cellSize)
+                                    .frame(width: cellW, height: cellH)
                             }
                         }
                     }
@@ -67,25 +70,18 @@ struct LayoutEditorView: View {
                     .gesture(
                         DragGesture(minimumDistance: 0, coordinateSpace: .local)
                             .onChanged { value in
-                                let startCell = cellAt(value.startLocation, cellSize: cellSize)
-                                let endCell = cellAt(value.location, cellSize: cellSize)
+                                let startCell = cellAt(value.startLocation, cellW: cellW, cellH: cellH)
+                                let endCell = cellAt(value.location, cellW: cellW, cellH: cellH)
                                 selectedCells = cellsInRect(from: startCell, to: endCell)
                             }
                     )
             }
             .frame(width: gridW, height: gridH)
-            .border(Color.secondary.opacity(0.6), width: 1)
-
-            // Screen position preview
-            VStack(spacing: 4) {
-                Text("Screen Position")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                LayoutPositionPreview(layout: currentLayout)
-            }
-            .padding(.top, 4)
-
-            Spacer()
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(Color.secondary.opacity(0.6), lineWidth: 1)
+            )
 
             HStack {
                 Button("Cancel") { dismiss() }
@@ -100,8 +96,12 @@ struct LayoutEditorView: View {
             }
         }
         .padding(20)
-        .frame(width: 360, height: 520)
+        .frame(width: 360)
     }
+
+    /// Editor grid size: 16:9, the common monitor aspect ratio.
+    static let gridWidth: CGFloat = 320
+    static let gridHeight: CGFloat = gridWidth * 9 / 16
 
     private var currentLayout: Layout {
         Layout(id: layoutID, name: name, rows: rows, cols: cols, selectedCells: selectedCells)
@@ -111,9 +111,9 @@ struct LayoutEditorView: View {
         selectedCells = selectedCells.filter { $0.row < rows && $0.col < cols }
     }
 
-    private func cellAt(_ point: CGPoint, cellSize: CGFloat) -> CellIndex {
-        let col = max(0, min(cols - 1, Int(point.x / cellSize)))
-        let row = max(0, min(rows - 1, Int(point.y / cellSize)))
+    private func cellAt(_ point: CGPoint, cellW: CGFloat, cellH: CGFloat) -> CellIndex {
+        let col = max(0, min(cols - 1, Int(point.x / cellW)))
+        let row = max(0, min(rows - 1, Int(point.y / cellH)))
         return CellIndex(row: row, col: col)
     }
 
@@ -129,38 +129,5 @@ struct LayoutEditorView: View {
             }
         }
         return cells
-    }
-}
-
-private struct LayoutPositionPreview: View {
-    let layout: Layout
-
-    private let previewWidth: CGFloat = 200
-    private let previewHeight: CGFloat = 120
-
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 6)
-                .fill(Color.secondary.opacity(0.08))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(Color.secondary.opacity(0.4), lineWidth: 1)
-                )
-
-            if !layout.selectedCells.isEmpty {
-                let screenRect = CGRect(x: 0, y: 0, width: previewWidth, height: previewHeight)
-                let frame = layout.frame(for: screenRect)
-
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(Color.accentColor.opacity(0.3))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 2)
-                            .stroke(Color.accentColor, lineWidth: 1.5)
-                    )
-                    .frame(width: frame.width, height: frame.height)
-                    .position(x: frame.midX, y: frame.midY)
-            }
-        }
-        .frame(width: previewWidth, height: previewHeight)
     }
 }
