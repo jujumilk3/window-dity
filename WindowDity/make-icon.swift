@@ -25,15 +25,15 @@ let margin: CGFloat = 100
 let tile = CGRect(x: margin, y: margin, width: W - margin * 2, height: W - margin * 2)
 let corner = tile.width * 0.2237
 
-// Diagonal indigo -> violet gradient fill.
+// Diagonal graphite gradient fill (neutral, no hue).
 ctx.saveGState()
 ctx.addPath(CGPath(roundedRect: tile, cornerWidth: corner, cornerHeight: corner, transform: nil))
 ctx.clip()
 let grad = CGGradient(
     colorsSpace: cs,
     colors: [
-        CGColor(red: 0.36, green: 0.45, blue: 0.99, alpha: 1),
-        CGColor(red: 0.50, green: 0.26, blue: 0.88, alpha: 1)
+        CGColor(red: 0.29, green: 0.29, blue: 0.30, alpha: 1),
+        CGColor(red: 0.11, green: 0.11, blue: 0.12, alpha: 1)
     ] as CFArray,
     locations: [0, 1]
 )!
