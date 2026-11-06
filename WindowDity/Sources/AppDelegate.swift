@@ -30,9 +30,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, DragDetectorDelegate {
                 guard WindowManager.hasAccessibilityPermission else { return }
                 timer.invalidate()
                 self?.trustTimer = nil
-                self?.dragDetector.start()
+                // While Preferences is open, closing it starts detection.
+                if self?.preferencesWindow == nil {
+                    self?.dragDetector.start()
+                }
             }
         }
+
+        // The menu bar icon can be hidden, so launching the app is a way back
+        // into Preferences (as in Window Tidy).
+        openPreferences()
+    }
+
+    /// Opening the app again while it runs (Finder, Spotlight, Launchpad, Dock)
+    /// brings up Preferences.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        openPreferences()
+        return false
     }
 
     private func setupStatusItem() {
