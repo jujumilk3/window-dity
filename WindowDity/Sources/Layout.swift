@@ -43,6 +43,22 @@ struct Layout: Codable, Identifiable {
         return CGRect(x: x, y: y, width: w, height: h)
     }
 
+    /// Frame for this layout in Accessibility coordinates (global, origin at
+    /// the top-left of the primary screen, y growing down), as
+    /// `WindowManager.move` expects. Row 0 is the top of the screen.
+    ///
+    /// `visibleFrame` is an `NSScreen.visibleFrame` (Cocoa: origin bottom-left,
+    /// y up). It is flipped first so `frame(for:)` measures rows from the top.
+    func axFrame(inVisibleFrame visibleFrame: CGRect, primaryScreenHeight: CGFloat) -> CGRect {
+        let axVisible = CGRect(
+            x: visibleFrame.minX,
+            y: primaryScreenHeight - visibleFrame.maxY,
+            width: visibleFrame.width,
+            height: visibleFrame.height
+        )
+        return frame(for: axVisible)
+    }
+
     static let defaults: [Layout] = [
         Layout(
             id: UUID(),

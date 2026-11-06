@@ -167,18 +167,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, DragDetectorDelegate {
               let layout = overlayManager.layoutUnderMouse(at: mouseLocation),
               let screen = NSScreen.main else { return }
 
-        let screenFrame = screen.visibleFrame
-        let layoutFrame = layout.frame(for: screenFrame)
+        move(windowRef, to: layout, on: screen)
+    }
 
-        // Convert from NSScreen coords (origin bottom-left) to AX coords (origin top-left)
+    private func move(_ windowRef: AXUIElement, to layout: Layout, on screen: NSScreen) {
         let primaryHeight = NSScreen.screens.first?.frame.height ?? screen.frame.height
-        let axFrame = CGRect(
-            x: layoutFrame.origin.x,
-            y: primaryHeight - layoutFrame.origin.y - layoutFrame.height,
-            width: layoutFrame.width,
-            height: layoutFrame.height
-        )
-
+        let axFrame = layout.axFrame(inVisibleFrame: screen.visibleFrame,
+                                     primaryScreenHeight: primaryHeight)
         WindowManager.move(windowRef, to: axFrame)
     }
 }
