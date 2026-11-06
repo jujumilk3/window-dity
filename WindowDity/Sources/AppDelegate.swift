@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import ApplicationServices
+import Combine
 
 final class AppDelegate: NSObject, NSApplicationDelegate, DragDetectorDelegate {
     private var statusItem: NSStatusItem!
@@ -11,6 +12,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, DragDetectorDelegate {
     private var preferencesWindow: NSWindow?
     private var prefsCloseObserver: Any?
     private var trustTimer: Timer?
+    private let hotKeys = HotKeyManager()
+    private var layoutsSubscription: AnyCancellable?
+    private var recordingObserver: Any?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupStatusItem()
@@ -19,6 +23,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, DragDetectorDelegate {
 
         dragDetector = DragDetector()
         dragDetector.delegate = self
+
+        // Re-register layout shortcuts whenever layouts change; pause them
+        // while the editor is recording a new one.
+        layoutsSubscription = layoutStore.$layouts.sink { [weak self] layouts in
+            self?.registerHotKeys(for: layouts)
+        }
+        recordingObserver = NotificationCenter.default.addObserver(
+            forName: .shortcutRecordingDidChange, object: nil, queue: .main
+        ) { [weak self] note in
+            self?.hotKeys.isSuspended = (note.userInfo?["active"] as? Bool) ?? false
+        }
 
         if WindowManager.hasAccessibilityPermission {
             dragDetector.start()
@@ -167,6 +182,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate, DragDetectorDelegate {
               let layout = overlayManager.layoutUnderMouse(at: mouseLocation),
               let screen = NSScreen.main else { return }
 
+        move(windowRef, to: layout, on: screen)
+    }
+
+    // MARK: - Layout shortcuts
+
+    private func registerHotKeys(for layouts: [Layout]) {
+        let bindings: [HotKeyManager.Binding] = layouts.compactMap { layout in
+            guard let shortcut = layout.shortcut else { return nil }
+            let id = layout.id
+            return (shortcut, { [weak self] in self?.applyLayoutToFocusedWindow(id: id) })
+        }
+        hotKeys.setBindings(bindings)
+    }
+
+    /// Applies a layout to the focused window, on the screen that window is on.
+    private func applyLayoutToFocusedWindow(id: UUID) {
+        guard let layout = layoutStore.layouts.first(where: { $0.id == id }) else { return }
+        guard WindowManager.hasAccessibilityPermission,
+              let windowRef = WindowManager.focusedWindow() else {
+            NSSound.beep()
+            return
+        }
+        let screen = WindowManager.frame(of: windowRef).flatMap(WindowManager.screen(containingAXRect:))
+            ?? NSScreen.main
+        guard let screen else { return }
         move(windowRef, to: layout, on: screen)
     }
 

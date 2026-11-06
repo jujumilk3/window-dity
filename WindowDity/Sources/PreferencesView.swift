@@ -139,7 +139,7 @@ struct PreferencesView: View {
         }
         .frame(width: 440, height: 520)
         .sheet(item: $editingLayout) { layout in
-            LayoutEditorView(layout: layout) { updated in
+            LayoutEditorView(layout: layout, takenShortcuts: shortcutOwners(excluding: layout.id)) { updated in
                 if store.layouts.contains(where: { $0.id == updated.id }) {
                     store.update(updated)
                 } else {
@@ -179,6 +179,12 @@ struct PreferencesView: View {
                         }
 
                         Spacer()
+
+                        if let shortcut = layout.shortcut {
+                            Text(shortcut.displayString)
+                                .font(.callout.monospacedDigit())
+                                .foregroundColor(.secondary)
+                        }
                     }
                     .padding(.vertical, 4)
                     .tag(layout.id)
@@ -300,6 +306,14 @@ struct PreferencesView: View {
         guard let sel = selection else { return }
         store.remove(id: sel)
         selection = nil
+    }
+
+    private func shortcutOwners(excluding id: UUID) -> [KeyShortcut: String] {
+        var owners: [KeyShortcut: String] = [:]
+        for layout in store.layouts where layout.id != id {
+            if let shortcut = layout.shortcut { owners[shortcut] = layout.name }
+        }
+        return owners
     }
 
     private func edit(_ ids: Set<UUID>) {

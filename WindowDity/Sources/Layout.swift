@@ -12,6 +12,9 @@ struct Layout: Codable, Identifiable {
     var rows: Int
     var cols: Int
     var selectedCells: Set<CellIndex>
+    /// Global shortcut that applies this layout to the focused window.
+    /// Optional, so layouts saved before shortcuts existed still decode.
+    var shortcut: KeyShortcut? = nil
 
     var gridDescription: String {
         guard !selectedCells.isEmpty else {

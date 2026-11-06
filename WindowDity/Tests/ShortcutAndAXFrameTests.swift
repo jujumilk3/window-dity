@@ -1,4 +1,5 @@
 import XCTest
+import Carbon.HIToolbox
 @testable import WindowDity
 
 final class ShortcutAndAXFrameTests: XCTestCase {
@@ -30,5 +31,57 @@ final class ShortcutAndAXFrameTests: XCTestCase {
                             selectedCells: [CellIndex(row: 0, col: 0)])
         let f = topRow.axFrame(inVisibleFrame: secondary, primaryScreenHeight: primaryHeight)
         XCTAssertEqual(f, CGRect(x: 1920, y: 480, width: 1280, height: 200))
+    }
+
+    // MARK: - Codable compatibility
+
+    func testLayoutWithoutShortcutKeyStillDecodes() throws {
+        let json = """
+        [{"id":"9E2D1B9F-0000-0000-0000-000000000001","name":"Left Half","rows":1,"cols":2,
+          "selectedCells":[{"row":0,"col":0}]}]
+        """
+        let decoded = try JSONDecoder().decode([Layout].self, from: Data(json.utf8))
+        XCTAssertEqual(decoded.count, 1)
+        XCTAssertNil(decoded[0].shortcut)
+    }
+
+    func testShortcutRoundTrips() throws {
+        let shortcut = KeyShortcut(keyCode: UInt32(kVK_LeftArrow),
+                                   modifiers: UInt32(controlKey | optionKey))
+        let layout = Layout(id: UUID(), name: "L", rows: 1, cols: 2,
+                            selectedCells: [CellIndex(row: 0, col: 0)], shortcut: shortcut)
+        let decoded = try JSONDecoder().decode(Layout.self, from: JSONEncoder().encode(layout))
+        XCTAssertEqual(decoded.shortcut, shortcut)
+    }
+
+    // MARK: - KeyShortcut
+
+    func testDisplayStringUsesStandardModifierOrder() {
+        let s = KeyShortcut(keyCode: UInt32(kVK_LeftArrow),
+                            modifiers: UInt32(cmdKey | shiftKey | optionKey | controlKey))
+        XCTAssertEqual(s.displayString, "⌃⌥⇧⌘←")
+    }
+
+    func testFunctionKeyName() {
+        XCTAssertEqual(KeyShortcut(keyCode: UInt32(kVK_F5), modifiers: 0).displayString, "F5")
+    }
+
+    func testCarbonModifiersFromEventFlags() {
+        let m = KeyShortcut.carbonModifiers(from: [.control, .option])
+        XCTAssertEqual(m, UInt32(controlKey | optionKey))
+    }
+
+    func testShortcutRequiresCommandLikeModifierUnlessFunctionKey() throws {
+        func event(_ keyCode: Int, _ flags: NSEvent.ModifierFlags) throws -> NSEvent {
+            try XCTUnwrap(NSEvent.keyEvent(
+                with: .keyDown, location: .zero, modifierFlags: flags, timestamp: 0,
+                windowNumber: 0, context: nil, characters: "", charactersIgnoringModifiers: "",
+                isARepeat: false, keyCode: UInt16(keyCode)))
+        }
+        XCTAssertNil(KeyShortcut(event: try event(kVK_ANSI_A, [])))
+        XCTAssertNil(KeyShortcut(event: try event(kVK_ANSI_A, [.shift])))
+        XCTAssertNotNil(KeyShortcut(event: try event(kVK_ANSI_A, [.option])))
+        XCTAssertNotNil(KeyShortcut(event: try event(kVK_LeftArrow, [.control, .option])))
+        XCTAssertNotNil(KeyShortcut(event: try event(kVK_F5, [])))
     }
 }

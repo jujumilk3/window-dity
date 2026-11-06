@@ -7,13 +7,19 @@ struct LayoutEditorView: View {
     @State private var rows: Int
     @State private var cols: Int
     @State private var selectedCells: Set<CellIndex>
+    @State private var shortcut: KeyShortcut?
 
     private let layoutID: UUID
+    /// Shortcuts already used by other layouts, mapped to their layout names.
+    private let takenShortcuts: [KeyShortcut: String]
     private let onSave: (Layout) -> Void
 
-    init(layout: Layout, onSave: @escaping (Layout) -> Void) {
+    init(layout: Layout, takenShortcuts: [KeyShortcut: String] = [:],
+         onSave: @escaping (Layout) -> Void) {
         self.layoutID = layout.id
+        self.takenShortcuts = takenShortcuts
         self.onSave = onSave
+        _shortcut = State(initialValue: layout.shortcut)
         _name = State(initialValue: layout.name)
         _rows = State(initialValue: layout.rows)
         _cols = State(initialValue: layout.cols)
@@ -83,6 +89,20 @@ struct LayoutEditorView: View {
                     .stroke(Color.secondary.opacity(0.6), lineWidth: 1)
             )
 
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text("Shortcut")
+                    Spacer()
+                    ShortcutRecorder(shortcut: $shortcut)
+                }
+                if let owner = shortcutConflict {
+                    Text("Already used by “\(owner)”")
+                        .font(.caption)
+                        .foregroundColor(.red)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+            }
+
             HStack {
                 Button("Cancel") { dismiss() }
                     .keyboardShortcut(.cancelAction)
@@ -92,7 +112,9 @@ struct LayoutEditorView: View {
                     dismiss()
                 }
                 .keyboardShortcut(.defaultAction)
-                .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty || selectedCells.isEmpty)
+                .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty
+                          || selectedCells.isEmpty
+                          || shortcutConflict != nil)
             }
         }
         .padding(20)
@@ -104,7 +126,12 @@ struct LayoutEditorView: View {
     static let gridHeight: CGFloat = gridWidth * 9 / 16
 
     private var currentLayout: Layout {
-        Layout(id: layoutID, name: name, rows: rows, cols: cols, selectedCells: selectedCells)
+        Layout(id: layoutID, name: name, rows: rows, cols: cols,
+               selectedCells: selectedCells, shortcut: shortcut)
+    }
+
+    private var shortcutConflict: String? {
+        shortcut.flatMap { takenShortcuts[$0] }
     }
 
     private func pruneSelection() {
